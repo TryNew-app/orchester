@@ -181,7 +181,7 @@ function normMember(m){
   m.first=first||'';m.last=last||'';m.joined=m.joined||'';m.left=m.left||'';
   m.instr=m.instr||'';
   m.eyear=+m.eyear>0?+m.eyear:'';
-  m.letter=/^[a-d]$/.test(m.letter)?m.letter:'';
+  m.letter=/^[a-d]$/.test(m.letter)?m.letter:'';m.alumni=!!m.alumni&&!m.eyear;
   delete m.voice;delete m.birth;
   m.name=(m.first+' '+m.last).trim();
   return m;
@@ -195,18 +195,26 @@ const normPiece=p=>{const n={title:'',composer:'',extra:'',cat:'Allgemein',...p}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.members)&&Array.isArray(d.events)){d.members.forEach(normMember);d.events=d.events.map(normEvent);d.gigs=(Array.isArray(d.gigs)?d.gigs:[]).map(normGig);d.pieces=(Array.isArray(d.pieces)?d.pieces:[]).map(normPiece);d.settings=normSettings(d.settings);return d}}catch(e){}return{members:[],events:[],gigs:[],pieces:[],settings:normSettings()}}
 let db=load();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){alert('Speichern ist fehlgeschlagen. Bitte mache eine Sicherung.')}}
-let ui={tab:'proben',year:new Date().getFullYear(),eventId:null,showNew:false,showBulk:false,bulkYear:new Date().getFullYear()+(new Date().getMonth()>=8?1:0),editMember:null,showNewMember:false,gigId:null,showNewGig:false,listMode:false,listSel:[],listPieces:false,listTitle:'Termine des Orchesters',pieceId:null,showNewPiece:false,pf:{title:'',composer:'',extra:'',cat:'Allgemein'},pfMsg:'',rf:{q:'',composer:'',cat:''},shareImg:null,lastInstr:INSTR[0],msort:'instr',focus:null};
+let ui={tab:'proben',hj:null,eventId:null,showNew:false,showBulk:false,bulkYear:new Date().getFullYear()+(new Date().getMonth()>=8?1:0),editMember:null,showNewMember:false,gigId:null,showNewGig:false,listMode:false,listSel:[],listPieces:false,listTitle:'Termine des Orchesters',pieceId:null,showNewPiece:false,pf:{title:'',composer:'',extra:'',cat:'Allgemein'},pfMsg:'',rf:{q:'',composer:'',cat:''},shareImg:null,lastInstr:INSTR[0],msort:'instr',focus:null};
 
+ui.hj=hjOf(today());
 const isFormer=m=>!!m.left&&m.left<=today();
 const inOrch=(m,d)=>(!m.joined||m.joined<=d)&&(!m.left||d<=m.left);
-const activeMembers=()=>db.members.filter(m=>m.active!==false&&!isFormer(m));
+const activeMembers=()=>db.members.filter(m=>m.active!==false&&!isFormer(m)&&!isAlumni(m));
+/* Wer wird bei einer Probe bzw. einem Auftritt abgefragt? Ehemalige Schüler nur bei Auftritten. */
+const attends=(m,e)=>m.active!==false&&inOrch(m,e.date)&&(isGig(e)||!alumniAt(m,e.date));
 const getEvent=()=>db.events.find(e=>e.id===ui.eventId);
 const getGig=()=>db.gigs.find(g=>g.id===ui.gigId);
 const getPiece=()=>db.pieces.find(p=>p.id===ui.pieceId);
 const presentCount=e=>e.present.filter(id=>db.members.some(m=>m.id===id)).length;
 const presentOfInstr=(e,v)=>e.present.filter(id=>{const m=db.members.find(x=>x.id===id);return m&&m.instr===v}).length;
-function years(){const s=new Set([new Date().getFullYear(),ui.year]);db.events.forEach(e=>s.add(+e.date.slice(0,4)));db.gigs.forEach(g=>s.add(+g.date.slice(0,4)));return[...s].sort((a,b)=>b-a)}
-const yearSelect=()=>`<select data-c="year" aria-label="Jahr">${years().map(v=>`<option ${v==ui.year?'selected':''}>${v}</option>`).join('')}</select>`;
+/* Halbjahre: 1. Halbjahr = 1. August bis 31. Januar, 2. Halbjahr = 1. Februar bis 31. Juli. Das Jahr ist das Jahr des Schuljahresbeginns. */
+function hjOf(d){const y=+d.slice(0,4),m=+d.slice(5,7);return m>=8?y+'-1':m>=2?(y-1)+'-2':(y-1)+'-1'}
+function hjRange(k){const y=+k.slice(0,4),h=k.slice(5);return h==='1'?[y+'-08-01',(y+1)+'-01-31']:[(y+1)+'-02-01',(y+1)+'-07-31']}
+const hjLabel=k=>k.slice(0,4)+' ('+k.slice(5)+'. HaJa)';
+function hjKeys(){const s=new Set([hjOf(today()),ui.hj]);db.events.forEach(e=>s.add(hjOf(e.date)));db.gigs.forEach(g=>s.add(hjOf(g.date)));return[...s].sort().reverse()}
+const yearSelect=()=>`<select data-c="year" aria-label="Halbjahr">${hjKeys().map(k=>`<option value="${k}" ${k===ui.hj?'selected':''}>${hjLabel(k)}</option>`).join('')}</select>`;
+const hjInfo=()=>{const r=hjRange(ui.hj);return fmtD(r[0])+' – '+fmtD(r[1])};
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const WEEKDAYS=[['1','Montag'],['2','Dienstag'],['3','Mittwoch'],['4','Donnerstag'],['5','Freitag'],['6','Samstag'],['0','Sonntag']];
 const isProbe=e=>e.type==='probe';
@@ -237,8 +245,8 @@ function span(from,to){ // volle Jahre und Monate zwischen zwei Daten
 const spanText=s=>s.y===0?`${s.m} Monate`:`${s.y} Jahre${s.m?`, ${s.m} Monat${s.m>1?'e':''}`:''}`;
 
 /* ---------- Proben ---------- */
-const eligibleFor=(e,v)=>db.members.filter(m=>m.instr===v&&((m.active!==false&&inOrch(m,e.date))||marks(e).includes(m.id))).sort(byName);
-const eligibleAll=e=>db.members.filter(m=>(m.active!==false&&inOrch(m,e.date))||marks(e).includes(m.id));
+const eligibleFor=(e,v)=>db.members.filter(m=>m.instr===v&&(attends(m,e)||marks(e).includes(m.id))).sort(byName);
+const eligibleAll=e=>db.members.filter(m=>attends(m,e)||marks(e).includes(m.id));
 const awayCount=e=>e.away.filter(id=>db.members.some(m=>m.id===id)).length;
 function probeRow(e){
   const away=awayCount(e);
@@ -248,8 +256,8 @@ function probeRow(e){
     ${e.cancelled?'<span class="badge">entfällt</span>':`<b style="min-width:70px;text-align:right">${presentCount(e)} 👥</b>`}</button>`;
 }
 function viewProben(){
-  const y=String(ui.year),t=today();
-  const all=db.events.filter(e=>e.date.startsWith(y));
+  const y=hjLabel(ui.hj),t=today(),rg=hjRange(ui.hj);
+  const all=db.events.filter(e=>e.date>=rg[0]&&e.date<=rg[1]);
   const pr=all.filter(isProbe).sort((a,b)=>a.date.localeCompare(b.date));
   const up=pr.filter(e=>e.date>=t);
   const past=pr.filter(e=>e.date<t).reverse(); // jüngste zuerst
@@ -258,7 +266,7 @@ function viewProben(){
   const ahead=pr.filter(e=>e.date>t&&!e.cancelled).length;
   const cx=pr.filter(e=>e.cancelled).length;
   let h=`<div class="row"><h1 class="sp">Proben</h1>${yearSelect()}</div>`;
-  h+=`<div class="muted">${y}: ${held} Proben bis heute · ${ahead} weitere geplant · ${cx} entfallen</div>`;
+  h+=`<div class="muted">${y}, ${hjInfo()}: ${held} Proben bis heute · ${ahead} weitere geplant · ${cx} entfallen</div>`;
   if(!db.members.length)h+=`<div class="card">Tipp: Lege zuerst unter „Mitglieder“ deine Schülerinnen und Schüler an.</div>`;
   if(ui.showNew){
     h+=`<div class="card"><h2>Neue Probe</h2>
@@ -271,7 +279,7 @@ function viewProben(){
       <div class="row" style="margin-bottom:12px"><input type="number" id="bYear" inputmode="numeric" min="2000" max="2100" value="${ui.bulkYear}" style="width:110px"><select id="bDay">${WEEKDAYS.map(([k,l])=>`<option value="${k}" ${k===String(db.settings.probeDay)?'selected':''}>${l}</option>`).join('')}</select></div>
       <div class="row"><button class="btn" data-a="dobulk">Proben anlegen</button><button class="btn sec" data-a="cancelbulk">Abbrechen</button></div></div>`;
   }else h+=`<div class="row" style="margin:12px 0"><button class="btn sp" data-a="new">+ Neue Probe</button><button class="btn sec" data-a="bulk">Ganzes Jahr anlegen</button></div>`;
-  if(!pr.length)h+=`<div class="muted" style="margin-top:16px">Noch keine Proben in ${y}.</div>`;
+  if(!pr.length)h+=`<div class="muted" style="margin-top:16px">Noch keine Proben im Halbjahr ${y}.</div>`;
   if(up.length)h+=`<h2 style="margin-top:18px">Anstehend</h2>`+up.map(probeRow).join('');
   if(past.length)h+=`<h2 style="margin-top:18px">Vergangen</h2>`+past.map(probeRow).join('');
   if(old.length)h+=`<h2 style="margin-top:22px">Alte Einträge</h2><div class="muted">Früher unter „Termine“ eingetragene Konzerte und Gottesdienste. Sie zählen nicht in der Statistik. Lege sie unter „Auftritte“ neu an und lösche sie danach hier.</div>`+
@@ -312,7 +320,7 @@ function cycle(e,id){
 }
 function setAll(e,v){
   const gig=isGig(e),skip=gig?e.no:e.away;
-  const ids=db.members.filter(m=>(v===null||m.instr===v)&&m.active!==false&&inOrch(m,e.date)&&!skip.includes(m.id)).map(m=>m.id);
+  const ids=db.members.filter(m=>(v===null||m.instr===v)&&attends(m,e)&&!skip.includes(m.id)).map(m=>m.id);
   e.present=[...new Set([...e.present,...ids])];
   if(gig){const s=new Set(ids);e.undecided=e.undecided.filter(x=>!s.has(x))}
 }
@@ -747,61 +755,70 @@ function applyRepField(el,kind){
 
 /* ---------- Mitglieder ---------- */
 const schoolYear=d=>d.getMonth()>=7?d.getFullYear():d.getFullYear()-1; // Das Schuljahr beginnt am 1. August
-const gradeOf=m=>m.eyear?schoolYear(new Date())-m.eyear+(+db.settings.startGrade||5):null;
+const gradeAt=(m,d)=>m.eyear?schoolYear(pd(d))-m.eyear+(+db.settings.startGrade||5):null;
+const gradeOf=m=>gradeAt(m,today());
+const alumniAt=(m,d)=>!!m.alumni||(!!m.eyear&&gradeAt(m,d)>13); // ehemaliger Schüler: Klasse 14 oder höher bzw. von Hand gesetzt
+const isAlumni=m=>alumniAt(m,today());
 function classOf(m){
+  if(m.alumni)return'ehemalig';
   const g=gradeOf(m);if(g==null||g<1)return'';
-  if(g>13)return'Schule beendet';
+  if(g>13)return'ehemalig';
   return g===11?'EF':g===12?'Q1':g===13?'Q2':g+(m.letter||'');
 }
+const yrLabel=y=>{const g=schoolYear(new Date())-y+(+db.settings.startGrade||5);return g>13?'ehemalig':g===11?'EF':g===12?'Q1':g===13?'Q2':g<1?'noch nicht da':String(g)};
 const gradeKey=m=>{const g=gradeOf(m);return g==null?999:g};
 function memberForm(m,edit){
   const ny=new Date().getFullYear();
-  const yrs=Array.from({length:16},(_,i)=>ny+1-i);if(m.eyear&&!yrs.includes(m.eyear))yrs.push(m.eyear);
+  const yrs=Array.from({length:32},(_,i)=>ny+1-i);if(m.eyear&&!yrs.includes(m.eyear))yrs.push(m.eyear);
   return `<div class="card"><h2>${edit?'Mitglied bearbeiten':'Neues Mitglied'}</h2>
   <div class="fgrid">
     <label>Nachname<input id="mLast" value="${esc(m.last||'')}" autocomplete="off"></label>
     <label>Vorname<input id="mFirst" value="${esc(m.first||'')}" autocomplete="off"></label>
     <label>Instrument<select id="mInstr">${INSTR.map(v=>`<option ${v===m.instr?'selected':''}>${v}</option>`).join('')}${m.instr&&!INSTR.includes(m.instr)?`<option selected>${esc(m.instr)}</option>`:''}</select></label>
     <span></span>
-    <label>Einschulungsjahr<select id="mEY" data-c="mcls"><option value="">–</option>${yrs.map(y=>`<option ${y===m.eyear?'selected':''}>${y}</option>`).join('')}</select></label>
+    <label>Einschulungsjahr<select id="mEY" data-c="mcls"><option value="">–</option><option value="ehem" ${m.alumni?'selected':''}>Ehemalig, Jahr unbekannt</option>${yrs.map(y=>`<option value="${y}" ${y===m.eyear?'selected':''}>${y} (${yrLabel(y)})</option>`).join('')}</select></label>
     <label>Klassenbuchstabe<select id="mCL" data-c="mcls"><option value="">–</option>${['a','b','c','d'].map(l=>`<option value="${l}" ${l===m.letter?'selected':''}>${l}</option>`).join('')}</select></label>
-    <div class="hint muted" style="grid-column:1/-1;padding:0">Klasse jetzt: <b id="mCls">${esc(classOf(m)||'–')}</b> (wird jedes Schuljahr ab 1. August automatisch hochgezählt)</div>
+    <div class="hint muted" style="grid-column:1/-1;padding:0">Klasse jetzt: <b id="mCls">${esc(classOf(m)||'–')}</b> (wird jedes Schuljahr ab 1. August automatisch hochgezählt). Ehemalige Schüler (ab Klasse 14) werden nur zu Auftritten abgefragt und erscheinen nicht in der Statistik. Für Erwachsene ohne Einschulungsjahr wähle „Ehemalig, Jahr unbekannt“.</div>
     <label>Eintritt ins Orchester<span class="dw"><input type="date" id="mJoined" value="${m.joined||''}"></span></label>
     <span></span>
     <div>Austritt aus dem Orchester<div class="dwrap"><span class="dw"><input type="date" id="mLeft" value="${m.left||''}"></span><button class="btn sec small" type="button" data-a="clearleft">Leeren</button></div></div>
-    <div class="hint muted">Nur ausfüllen, wenn die Person das Orchester verlässt. Ab diesem Datum erscheint sie unter „Ehemalige“.</div>
+    <div class="hint muted">Nur ausfüllen, wenn die Person das Orchester verlässt. Ab diesem Datum erscheint sie unter „Ausgetretene Mitglieder“.</div>
   </div>
   <div class="row"><button class="btn" data-a="${edit?'savemember':'addmember'}">${edit?'Speichern':'Hinzufügen'}</button><button class="btn sec" data-a="${edit?'canceledit':'cancelnewmember'}">Abbrechen</button></div></div>`;
 }
-const memberBadges=m=>`${classOf(m)?` <span class="badge">${esc(classOf(m))}</span>`:''}${m.active===false?' <span class="badge">pausiert</span>':''}${m.left?` <span class="badge">Austritt ${fmtD(m.left)}</span>`:''}${!m.joined?' <span class="badge">Eintritt fehlt</span>':''}${!m.eyear?' <span class="badge">Klasse fehlt</span>':''}`;
+const memberBadges=m=>`${classOf(m)?` <span class="badge">${esc(classOf(m))}</span>`:''}${m.active===false?' <span class="badge">pausiert</span>':''}${m.left?` <span class="badge">Austritt ${fmtD(m.left)}</span>`:''}${!m.joined?' <span class="badge">Eintritt fehlt</span>':''}${(!m.eyear&&!m.alumni)?' <span class="badge">Klasse fehlt</span>':''}`;
 const memberBtns=m=>`<button class="btn sec small" title="Ändern" aria-label="Ändern" data-a="editmember" data-id="${m.id}">✎</button>
       <button class="btn sec small" title="${m.active===false?'Aktivieren':'Pausieren'}" aria-label="${m.active===false?'Aktivieren':'Pausieren'}" data-a="togglemember" data-id="${m.id}">${m.active===false?'▶':'⏸'}</button>
       <button class="btn danger small" title="Löschen" aria-label="Löschen" data-a="delmember" data-id="${m.id}">✕</button>`;
-function viewMembers(){
-  const em=ui.editMember&&db.members.find(x=>x.id===ui.editMember);
-  const cur=db.members.filter(m=>!isFormer(m)),former=db.members.filter(isFormer).sort(byName);
-  let h=`<h1>Mitglieder</h1><div class="muted">${activeMembers().length} aktive Mitglieder</div>`;
-  h+=em?memberForm(em,true):ui.showNewMember?memberForm({instr:ui.lastInstr},false):`<button class="btn wide" data-a="newmember">+ Neues Mitglied</button>`;
-  h+=`<div class="row" style="margin:6px 0">${[['instr','Nach Instrument'],['name','Alphabetisch'],['cls','Nach Klasse']].map(([k,l])=>`<button class="btn small ${ui.msort===k?'':'sec'}" data-a="msort" data-v="${k}">${l}</button>`).join('')}</div>`;
-  if(!cur.length)h+=`<div class="card muted">Noch niemand eingetragen.</div>`;
-  else if(ui.msort==='instr'){
-    h+=`<div class="igrid mem">`;
+function memberList(list,empty){
+  if(!list.length)return empty?`<div class="card muted">${empty}</div>`:'';
+  if(ui.msort==='instr'){
+    let h=`<div class="igrid mem">`;
     for(const v of instrGroups()){
-      const ms=cur.filter(m=>m.instr===v).sort(byName);if(!ms.length)continue;
+      const ms=list.filter(m=>m.instr===v).sort(byName);if(!ms.length)continue;
       h+=`<div class="ig"><div class="ih"><b class="sp">${esc(instrLabel(v))}</b><span class="cnt">${ms.filter(m=>m.active!==false).length}</span></div>`+
         ms.map(m=>`<div class="piece"><span>${esc(dn(m))}${memberBadges(m)}</span>${memberBtns(m)}</div>`).join('')+`</div>`;
     }
-    h+=`</div>`;
-  }else{
-    const list=[...cur].sort(ui.msort==='cls'?(a,b)=>gradeKey(a)-gradeKey(b)||(a.letter||'').localeCompare(b.letter||'')||byName(a,b):byName);
-    h+=`<div class="card"><div class="fm m5 hd"><span>Name</span><span>Klasse</span><span>Instrument</span><span>Eintritt</span><span></span></div>`+
-      list.map(m=>`<div class="fm m5"><b class="nm">${esc(dn(m))}${m.active===false?' <span class="badge">pausiert</span>':''}</b>
-        <span><span class="lb">Klasse </span>${esc(classOf(m)||'–')}</span>
-        <span><span class="lb">Instrument </span>${esc(instrLabel(m.instr))}</span>
-        <span><span class="lb">Eintritt </span>${m.joined?fmtD(m.joined):'–'}</span>
-        <span class="act">${memberBtns(m)}</span></div>`).join('')+`</div>`;
+    return h+`</div>`;
   }
-  h+=`<h2 style="margin-top:22px">Ehemalige Mitglieder <span class="muted">${former.length}</span></h2><div class="card">`;
+  const l=[...list].sort(ui.msort==='cls'?(a,b)=>gradeKey(a)-gradeKey(b)||(a.letter||'').localeCompare(b.letter||'')||byName(a,b):byName);
+  return `<div class="card"><div class="fm m5 hd"><span>Name</span><span>Klasse</span><span>Instrument</span><span>Eintritt</span><span></span></div>`+
+    l.map(m=>`<div class="fm m5"><b class="nm">${esc(dn(m))}${m.active===false?' <span class="badge">pausiert</span>':''}</b>
+      <span><span class="lb">Klasse </span>${esc(classOf(m)||'–')}</span>
+      <span><span class="lb">Instrument </span>${esc(instrLabel(m.instr))}</span>
+      <span><span class="lb">Eintritt </span>${m.joined?fmtD(m.joined):'–'}</span>
+      <span class="act">${memberBtns(m)}</span></div>`).join('')+`</div>`;
+}
+function viewMembers(){
+  const em=ui.editMember&&db.members.find(x=>x.id===ui.editMember);
+  const cur=db.members.filter(m=>!isFormer(m)),former=db.members.filter(isFormer).sort(byName);
+  const act=cur.filter(m=>!isAlumni(m)),alum=cur.filter(isAlumni);
+  let h=`<h1>Mitglieder</h1><div class="muted">${activeMembers().length} aktive Mitglieder${alum.length?` · ${alum.length} ehemalige Schüler`:''}</div>`;
+  h+=em?memberForm(em,true):ui.showNewMember?memberForm({instr:ui.lastInstr},false):`<button class="btn wide" data-a="newmember">+ Neues Mitglied</button>`;
+  h+=`<div class="row" style="margin:6px 0">${[['instr','Nach Instrument'],['name','Alphabetisch'],['cls','Nach Klasse']].map(([k,l])=>`<button class="btn small ${ui.msort===k?'':'sec'}" data-a="msort" data-v="${k}">${l}</button>`).join('')}</div>`;
+  h+=memberList(act,'Noch niemand eingetragen.');
+  if(alum.length)h+=`<h2 style="margin-top:22px">Ehemalige Schüler <span class="muted">${alum.length}</span></h2><div class="muted">Sie kommen nur zu Auftritten. Bei Proben und in der Statistik tauchen sie nicht auf.</div>`+memberList(alum,'');
+  h+=`<h2 style="margin-top:22px">Ausgetretene Mitglieder <span class="muted">${former.length}</span></h2><div class="card">`;
   if(former.length){
     h+=`<div class="fm hd"><span>Name</span><span>Instrument</span><span>Eintritt</span><span>Austritt</span><span>Zeit im Orchester</span><span></span></div>`;
     h+=former.map(m=>`<div class="fm"><b class="nm">${esc(dn(m))}</b>
@@ -810,7 +827,7 @@ function viewMembers(){
       <span><span class="lb">Austritt </span>${fmtD(m.left)}</span>
       <span><span class="lb">Zeit im Orchester </span>${m.joined?(()=>{const s=span(pd(m.joined),pd(m.left));return s.y+' J., '+s.m+' Mon.'})():'–'}</span>
       <span class="act"><button class="btn sec small" data-a="editmember" data-id="${m.id}">Ändern</button><button class="btn danger small" data-a="delmember" data-id="${m.id}">✕</button></span></div>`).join('');
-  }else h+=`<span class="muted">Keine ehemaligen Mitglieder.</span>`;
+  }else h+=`<span class="muted">Keine ausgetretenen Mitglieder.</span>`;
   h+=`</div>`;
   return h;
 }
@@ -820,18 +837,18 @@ const dec=x=>(Math.round(x*10)/10).toString().replace('.',',');
 const fmtMin=m=>m+' Min / '+dec(m/60)+' Std / '+dec(m/1440)+' Tage';
 function viewStats(){
   const pm=probeMinutes();
-  const y=String(ui.year);
+  const y=hjLabel(ui.hj),rg=hjRange(ui.hj);
   const t=today();
   // Es zählt nur, was schon stattgefunden hat (Datum bis einschließlich heute); entfallene Proben zählen nicht
-  const pr=db.events.filter(e=>isProbe(e)&&!e.cancelled&&e.date.startsWith(y)&&e.date<=t);
-  const gg=db.gigs.filter(g=>g.date.startsWith(y)&&g.date<=t);
+  const pr=db.events.filter(e=>isProbe(e)&&!e.cancelled&&e.date>=rg[0]&&e.date<=rg[1]&&e.date<=t);
+  const gg=db.gigs.filter(g=>g.date>=rg[0]&&g.date<=rg[1]&&g.date<=t);
   const prAvg=avg(pr.map(presentCount));
   // Wer zählt bei einer Probe mit? Aktive Mitglieder, die an dem Tag im Orchester waren, dazu jeder, der anwesend war.
-  const elig=e=>db.members.filter(m=>(m.active!==false&&inOrch(m,e.date))||e.present.includes(m.id));
+  const elig=e=>db.members.filter(m=>attends(m,e)||e.present.includes(m.id));
   const slots=pr.reduce((s,e)=>s+elig(e).length,0);
   const got=pr.reduce((s,e)=>s+presentCount(e),0);
   let h=`<div class="row"><h1 class="sp">Statistik</h1>${yearSelect()}</div>`;
-  h+=`<div class="muted">Es zählen nur Proben und Auftritte, die bis heute stattgefunden haben. Entfallene Proben zählen nicht.</div>`;
+  h+=`<div class="muted">${hjInfo()}. Es zählen nur Proben und Auftritte, die bis heute stattgefunden haben. Entfallene Proben zählen nicht. Ehemalige Schüler zählen nur bei Auftritten.</div>`;
   const titles=()=>gg.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(g=>`<div class="tl">${esc(gigTitle(g))} (${fmtD(g.date)})</div>`).join('');
   h+=`<div class="grid" style="margin-top:10px">`+[['Proben',pr.length,''],['Auftritte',gg.length,titles()],['Gesamt',pr.length+gg.length,'']].map(([l,n,tl])=>`<div class="card"><div class="muted">${l} ${y}</div><div class="big">${n}</div>${tl}</div>`).join('')+`</div>`;
   h+=`<div class="card"><div class="muted">Probenbeteiligung ${y} (nur Proben)</div>
@@ -845,11 +862,11 @@ function viewStats(){
     const g=pr.reduce((s,e)=>s+presentOfInstr(e,v),0);
     return `<tr><td>${esc(instrLabel(v))}</td><td class="muted">${n} Mitglied${n===1?'':'er'}</td><td>${pr.length?'Ø '+f1(a)+(sl?' ('+pct(g/sl)+')':''):'–'}</td></tr>`}).join('')+`</table></div>`;
   // Anwesenheit pro Mitglied: höchster Anteil zuerst, die besten drei Prozentwerte farbig
-  const rows=db.members.filter(m=>pr.some(e=>e.present.includes(m.id))||(m.active!==false&&(!m.joined||m.joined<=y+'-12-31')&&(!m.left||m.left>=y+'-01-01'))).map(m=>{
+  const rows=db.members.filter(m=>pr.some(e=>e.present.includes(m.id))||(m.active!==false&&(!m.joined||m.joined<=rg[1])&&(!m.left||m.left>=rg[0]))).map(m=>{
     const n=pr.filter(e=>e.present.includes(m.id)).length;
-    const tot=pr.filter(e=>e.present.includes(m.id)||inOrch(m,e.date)).length;
+    const tot=pr.filter(e=>e.present.includes(m.id)||(inOrch(m,e.date)&&!alumniAt(m,e.date))).length;
     return{m,n,tot,p:tot?Math.round(n/tot*100):-1};
-  }).sort((a,b)=>b.p-a.p||b.n-a.n||byName(a.m,b.m));
+  }).filter(r=>r.n>0||r.tot>0).sort((a,b)=>b.p-a.p||b.n-a.n||byName(a.m,b.m));
   const top=[...new Set(rows.filter(r=>r.p>0).map(r=>r.p))].slice(0,3);
   h+=`<h2 style="margin-top:20px">Anwesenheit pro Mitglied</h2><div class="muted">Sortiert nach Anteil der besuchten Proben. Farbig: die drei besten Werte (bei Gleichstand auch mehr als drei Personen).</div><div class="card">`+(rows.length?`<table class="mt"><tr class="muted"><td>Name</td><td>Instrument</td><td>Proben</td><td>Zeit in Proben</td><td>Anteil</td></tr>`+rows.map(r=>{
     const k=top.indexOf(r.p);
@@ -857,7 +874,7 @@ function viewStats(){
   const cnt={};gg.forEach(g=>(g.pieces||[]).forEach(p=>cnt[p]=(cnt[p]||0)+1));
   const ps=Object.entries(cnt).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'de'));
   const total=ps.reduce((n,[,k])=>n+k,0);
-  h+=`<h2 style="margin-top:20px">Stücke bei Auftritten</h2><div class="muted" style="margin-top:4px">${total?`Im Jahr ${y} hat das Orchester bei Auftritten insgesamt ${total===1?'ein Stück':total+' Stücke'} gesungen${ps.length!==total?` (${ps.length} verschiedene)`:''}.`:`Im Jahr ${y} wurden bei Auftritten noch keine Stücke gesungen.`}</div><div class="card">`+(ps.length?`<table>`+ps.map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n}×</td></tr>`).join('')+`</table>`:`<span class="muted">Noch keine Stücke eingetragen.</span>`)+`</div>`;
+  h+=`<h2 style="margin-top:20px">Stücke bei Auftritten</h2><div class="muted" style="margin-top:4px">${total?`Im Halbjahr ${y} hat das Orchester bei Auftritten insgesamt ${total===1?'ein Stück':total+' Stücke'} gesungen${ps.length!==total?` (${ps.length} verschiedene)`:''}.`:`Im Halbjahr ${y} wurden bei Auftritten noch keine Stücke gesungen.`}</div><div class="card">`+(ps.length?`<table>`+ps.map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n}×</td></tr>`).join('')+`</table>`:`<span class="muted">Noch keine Stücke eingetragen.</span>`)+`</div>`;
   return h;
 }
 
@@ -972,14 +989,14 @@ document.addEventListener('click',ev=>{
       if(have.has(k)){skipped++;continue}
       db.events.push(normEvent({id:uid(),date:k,type:'probe'}));made++;
     }
-    save();ui.year=yr;ui.bulkYear=yr;ui.showBulk=false;render();
+    save();ui.hj=hjOf(yr+'-09-01');ui.bulkYear=yr;ui.showBulk=false;render();
     alert(made+' Proben angelegt'+(skipped?', '+skipped+' übersprungen (gab es schon)':'')+'.');return;
   }
   else if(a==='togglecancel'&&e){e.cancelled=!e.cancelled;save()}
   else if(a==='create'){
     const date=$('#nDate').value;if(!date){alert('Bitte ein Datum wählen.');return}
     const n=normEvent({id:uid(),date,type:'probe',title:$('#nTitle').value.trim()});
-    db.events.push(n);save();ui.eventId=n.id;ui.showNew=false;ui.year=+date.slice(0,4);window.scrollTo(0,0);
+    db.events.push(n);save();ui.eventId=n.id;ui.showNew=false;ui.hj=hjOf(date);window.scrollTo(0,0);
   }
   else if(a==='open'){ui.eventId=id;window.scrollTo(0,0)}
   else if(a==='back'){ui.eventId=null;window.scrollTo(0,0)}
@@ -1001,7 +1018,7 @@ document.addEventListener('click',ev=>{
     const first=$('#mFirst').value.trim(),last=$('#mLast').value.trim();
     if(!first&&!last){alert('Bitte Nach- und Vornamen eingeben.');return}
     ui.lastInstr=$('#mInstr').value;
-    db.members.push(normMember({id:uid(),first,last,instr:ui.lastInstr,eyear:$('#mEY').value,letter:$('#mCL').value,joined:$('#mJoined').value||'',left:$('#mLeft').value||'',active:true}));save();ui.showNewMember=false;
+    db.members.push(normMember({id:uid(),first,last,instr:ui.lastInstr,eyear:$('#mEY').value==='ehem'?'':$('#mEY').value,alumni:$('#mEY').value==='ehem',letter:$('#mCL').value,joined:$('#mJoined').value||'',left:$('#mLeft').value||'',active:true}));save();ui.showNewMember=false;
   }
   else if(a==='newmember'){ui.showNewMember=true;ui.focus='#mLast'}
   else if(a==='cancelnewmember'){ui.showNewMember=false}
@@ -1012,7 +1029,7 @@ document.addEventListener('click',ev=>{
     const m=db.members.find(x=>x.id===ui.editMember);
     const first=$('#mFirst').value.trim(),last=$('#mLast').value.trim();
     if(!first&&!last){alert('Bitte Nach- und Vornamen eingeben.');return}
-    m.first=first;m.last=last;m.instr=$('#mInstr').value;m.eyear=$('#mEY').value;m.letter=$('#mCL').value;m.joined=$('#mJoined').value||'';m.left=$('#mLeft').value||'';normMember(m);save();ui.editMember=null;
+    m.first=first;m.last=last;m.instr=$('#mInstr').value;m.alumni=$('#mEY').value==='ehem';m.eyear=m.alumni?'':$('#mEY').value;m.letter=$('#mCL').value;m.joined=$('#mJoined').value||'';m.left=$('#mLeft').value||'';normMember(m);save();ui.editMember=null;
   }
   else if(a==='togglemember'){const m=db.members.find(x=>x.id===id);m.active=m.active===false;save()}
   else if(a==='delmember'){
@@ -1090,10 +1107,10 @@ document.addEventListener('change',ev=>{
   if(applyGigField(ev.target))return;
   if(applyRepField(ev.target,'change'))return;
   if(c==='ltitle'){ui.listTitle=ev.target.value;return}
-  if(c==='mcls'){const o=$('#mCls');if(o)o.textContent=classOf({eyear:+$('#mEY').value||'',letter:$('#mCL').value})||'–';return}
+  if(c==='mcls'){const o=$('#mCls');if(o)o.textContent=classOf({eyear:+$('#mEY').value||'',alumni:$('#mEY').value==='ehem',letter:$('#mCL').value})||'–';return}
   const e=getEvent();
-  if(c==='year'){ui.year=+ev.target.value}
-  else if(c==='evdate'&&e){if(ev.target.value){e.date=ev.target.value;ui.year=+e.date.slice(0,4);save()}}
+  if(c==='year'){ui.hj=ev.target.value}
+  else if(c==='evdate'&&e){if(ev.target.value){e.date=ev.target.value;ui.hj=hjOf(e.date);save()}}
   else if(c==='evtitle'&&e){e.title=ev.target.value.trim();save();return}
   else if(c==='import'){doImport(ev.target.files[0]);return}
   render();
