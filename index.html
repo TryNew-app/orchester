@@ -183,6 +183,9 @@ function normMember(m){
   m.instr=m.instr||'';
   m.eyear=+m.eyear>0?+m.eyear:'';
   m.letter=/^[a-d]$/.test(m.letter)?m.letter:'';m.alumni=!!m.alumni&&!m.eyear;
+  if(!Array.isArray(m.pauses))m.pauses=[];
+  if(m.active===false&&!m.pauses.length)m.pauses.push({from:today(),to:''});
+  m.pauses=m.pauses.map(p=>({from:'',to:'',...p}));delete m.active;
   delete m.voice;delete m.birth;
   m.name=(m.first+' '+m.last).trim();
   return m;
@@ -200,10 +203,11 @@ let ui={tab:'proben',hj:null,eventId:null,showNew:false,showBulk:false,bulkYear:
 
 ui.hj=hjOf(today());
 const isFormer=m=>!!m.left&&m.left<=today();
-const inOrch=(m,d)=>(!m.joined||m.joined<=d)&&(!m.left||d<=m.left);
-const activeMembers=()=>db.members.filter(m=>m.active!==false&&!isFormer(m)&&!isAlumni(m));
+const pausedAt=(m,d)=>(m.pauses||[]).some(p=>(!p.from||p.from<=d)&&(!p.to||d<=p.to));
+const inOrch=(m,d)=>(!m.joined||m.joined<=d)&&(!m.left||d<=m.left)&&!pausedAt(m,d);
+const activeMembers=()=>db.members.filter(m=>!pausedAt(m,today())&&!isFormer(m)&&!isAlumni(m));
 /* Wer wird bei einer Probe bzw. einem Auftritt abgefragt? Ehemalige Schüler nur bei Auftritten. */
-const attends=(m,e)=>m.active!==false&&inOrch(m,e.date)&&(isGig(e)||!alumniAt(m,e.date));
+const attends=(m,e)=>inOrch(m,e.date)&&(isGig(e)||!alumniAt(m,e.date));
 const getEvent=()=>db.events.find(e=>e.id===ui.eventId);
 const getGig=()=>db.gigs.find(g=>g.id===ui.gigId);
 const getPiece=()=>db.pieces.find(p=>p.id===ui.pieceId);
@@ -785,11 +789,13 @@ function memberForm(m,edit){
     <div>Austritt aus dem Orchester<div class="dwrap"><span class="dw"><input type="date" id="mLeft" value="${m.left||''}"></span><button class="btn sec small" type="button" data-a="clearleft">Leeren</button></div></div>
     <div class="hint muted">Nur ausfüllen, wenn die Person das Orchester verlässt. Ab diesem Datum erscheint sie unter „Ausgetretene Mitglieder“.</div>
   </div>
+  ${edit?`<div class="sect" style="margin-top:6px">Pausen</div><div class="muted">Zeiträume, in denen die Person nicht mitspielt. Nur Termine in diesen Zeiträumen werden nicht abgefragt und zählen nicht in der Statistik. „Bis“ leer lassen, wenn die Pause noch läuft.</div>
+    ${(m.pauses||[]).map((p,i)=>`<div class="fgrid" style="margin:8px 0 0"><label>Von<span class="dw"><input type="date" data-c="pz_from" data-i="${i}" value="${p.from||''}"></span></label><label>Bis<span class="dw"><input type="date" data-c="pz_to" data-i="${i}" value="${p.to||''}"></span></label></div><button class="btn danger small" data-a="delpause" data-i="${i}">Pause entfernen</button>`).join('')}
+    <div style="margin:10px 0 14px"><button class="btn sec small" data-a="addpause">+ Pause hinzufügen</button></div>`:''}
   <div class="row"><button class="btn" data-a="${edit?'savemember':'addmember'}">${edit?'Speichern':'Hinzufügen'}</button><button class="btn sec" data-a="${edit?'canceledit':'cancelnewmember'}">Abbrechen</button></div></div>`;
 }
-const memberBadges=m=>`${classOf(m)?` <span class="badge">${esc(classOf(m))}</span>`:''}${m.active===false?' <span class="badge">pausiert</span>':''}${m.left?` <span class="badge">Austritt ${fmtD(m.left)}</span>`:''}${!m.joined?' <span class="badge">Eintritt fehlt</span>':''}${(!m.eyear&&!m.alumni)?' <span class="badge">Klasse fehlt</span>':''}`;
+const memberBadges=m=>`${classOf(m)?` <span class="badge">${esc(classOf(m))}</span>`:''}${pausedAt(m,today())?' <span class="badge">pausiert</span>':''}${m.left?` <span class="badge">Austritt ${fmtD(m.left)}</span>`:''}${!m.joined?' <span class="badge">Eintritt fehlt</span>':''}${(!m.eyear&&!m.alumni)?' <span class="badge">Klasse fehlt</span>':''}`;
 const memberBtns=m=>`<button class="btn sec small" title="Ändern" aria-label="Ändern" data-a="editmember" data-id="${m.id}">✎</button>
-      <button class="btn sec small" title="${m.active===false?'Aktivieren':'Pausieren'}" aria-label="${m.active===false?'Aktivieren':'Pausieren'}" data-a="togglemember" data-id="${m.id}">${m.active===false?'▶':'⏸'}</button>
       <button class="btn danger small" title="Löschen" aria-label="Löschen" data-a="delmember" data-id="${m.id}">✕</button>`;
 function memberList(list,empty){
   if(!list.length)return empty?`<div class="card muted">${empty}</div>`:'';
@@ -797,18 +803,24 @@ function memberList(list,empty){
     let h=`<div class="igrid mem">`;
     for(const v of instrGroups()){
       const ms=list.filter(m=>m.instr===v).sort(byName);if(!ms.length)continue;
-      h+=`<div class="ig"><div class="ih"><b class="sp">${esc(instrLabel(v))}</b><span class="cnt">${ms.filter(m=>m.active!==false).length}</span></div>`+
+      h+=`<div class="ig"><div class="ih"><b class="sp">${esc(instrLabel(v))}</b><span class="cnt">${ms.filter(m=>!pausedAt(m,today())).length}</span></div>`+
         ms.map(m=>`<div class="piece"><span>${esc(dn(m))}${memberBadges(m)}</span>${memberBtns(m)}</div>`).join('')+`</div>`;
     }
     return h+`</div>`;
   }
   const l=[...list].sort(ui.msort==='cls'?(a,b)=>gradeKey(a)-gradeKey(b)||(a.letter||'').localeCompare(b.letter||'')||byName(a,b):byName);
   return `<div class="card"><div class="fm m5 hd"><span>Name</span><span>Klasse</span><span>Instrument</span><span>Eintritt</span><span></span></div>`+
-    l.map(m=>`<div class="fm m5"><b class="nm">${esc(dn(m))}${m.active===false?' <span class="badge">pausiert</span>':''}</b>
+    l.map(m=>`<div class="fm m5"><b class="nm">${esc(dn(m))}${pausedAt(m,today())?' <span class="badge">pausiert</span>':''}</b>
       <span><span class="lb">Klasse </span>${esc(classOf(m)||'–')}</span>
       <span><span class="lb">Instrument </span>${esc(instrLabel(m.instr))}</span>
       <span><span class="lb">Eintritt </span>${m.joined?fmtD(m.joined):'–'}</span>
       <span class="act">${memberBtns(m)}</span></div>`).join('')+`</div>`;
+}
+function readMemberForm(m,soft){ // übernimmt die Felder des Formulars; soft = auch ohne Namen (zwischenspeichern)
+  const first=$('#mFirst').value.trim(),last=$('#mLast').value.trim();
+  if(!first&&!last){if(!soft){alert('Bitte Nach- und Vornamen eingeben.')}else alert('Bitte zuerst einen Namen eingeben.');return false}
+  m.first=first;m.last=last;m.instr=$('#mInstr').value;m.alumni=$('#mEY').value==='ehem';m.eyear=m.alumni?'':$('#mEY').value;m.letter=$('#mCL').value;m.joined=$('#mJoined').value||'';m.left=$('#mLeft').value||'';
+  normMember(m);return true;
 }
 function viewMembers(){
   const em=ui.editMember&&db.members.find(x=>x.id===ui.editMember);
@@ -857,7 +869,7 @@ function viewStats(){
     <div class="big">${slots?pct(got/slots):'–'}</div>
     <div class="muted">${pr.length?`Ø ${f1(prAvg)} Mitglieder pro Probe bei Ø ${f1(slots/pr.length)} Eingetragenen (${pr.length} Proben). Neue Mitglieder zählen ab ihrem Eintritt ins Orchester, ehemalige bis zu ihrem Austritt.`:'Noch keine Proben in diesem Jahr.'}</div></div>`;
   // Anwesenheit pro Mitglied: höchster Anteil zuerst, die besten drei Prozentwerte farbig
-  const rows=db.members.filter(m=>pr.some(e=>e.present.includes(m.id))||(m.active!==false&&(!m.joined||m.joined<=rg[1])&&(!m.left||m.left>=rg[0]))).map(m=>{
+  const rows=db.members.filter(m=>pr.some(e=>e.present.includes(m.id))||true).map(m=>{
     const n=pr.filter(e=>e.present.includes(m.id)).length;
     const tot=pr.filter(e=>e.present.includes(m.id)||(inOrch(m,e.date)&&!alumniAt(m,e.date))).length;
     return{m,n,tot,p:tot?Math.round(n/tot*100):-1};
@@ -869,8 +881,7 @@ function viewStats(){
   const cnt={};gg.forEach(g=>(g.pieces||[]).forEach(p=>cnt[p]=(cnt[p]||0)+1));
   const ps=Object.entries(cnt).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'de'));
   const total=ps.reduce((n,[,k])=>n+k,0);
-  const fut=db.gigs.filter(g=>g.date>t&&g.date>=rg[0]&&g.date<=rg[1]);
-  h+=`<h2 style="margin-top:20px">Stücke bei Auftritten</h2><div class="muted" style="margin-top:4px">${total?`Im Halbjahr ${y} hat das Orchester bei Auftritten insgesamt ${total===1?'ein Stück':total+' Stücke'} gesungen${ps.length!==total?` (${ps.length} verschiedene)`:''}.`:`Im Halbjahr ${y} wurden bei Auftritten noch keine Stücke gesungen.`}${fut.length?` <br>Noch nicht gezählt: ${fut.length===1?'ein geplanter Auftritt':fut.length+' geplante Auftritte'} in diesem Halbjahr (${(k=>k===1?'1 Stück':k+' Stücke')(fut.reduce((n,g)=>n+g.pieces.length,0))}). Auftritte zählen erst ab ihrem Datum.`:''}</div><div class="card">`+(ps.length?`<table>`+ps.map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n}×</td></tr>`).join('')+`</table>`:`<span class="muted">Noch keine Stücke eingetragen.</span>`)+`</div>`;
+  h+=`<h2 style="margin-top:20px">Stücke bei Auftritten</h2><div class="muted" style="margin-top:4px">Stücke von Auftritten erscheinen ab ihrem Datum.</div><div class="card">`+(ps.length?`<table>`+ps.map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n}×</td></tr>`).join('')+`</table>`:`<span class="muted">Noch keine Stücke eingetragen.</span>`)+`</div>`;
   return h;
 }
 
@@ -1014,7 +1025,7 @@ document.addEventListener('click',ev=>{
     const first=$('#mFirst').value.trim(),last=$('#mLast').value.trim();
     if(!first&&!last){alert('Bitte Nach- und Vornamen eingeben.');return}
     ui.lastInstr=$('#mInstr').value;
-    db.members.push(normMember({id:uid(),first,last,instr:ui.lastInstr,eyear:$('#mEY').value==='ehem'?'':$('#mEY').value,alumni:$('#mEY').value==='ehem',letter:$('#mCL').value,joined:$('#mJoined').value||'',left:$('#mLeft').value||'',active:true}));save();ui.showNewMember=false;
+    db.members.push(normMember({id:uid(),first,last,instr:ui.lastInstr,eyear:$('#mEY').value==='ehem'?'':$('#mEY').value,alumni:$('#mEY').value==='ehem',letter:$('#mCL').value,joined:$('#mJoined').value||'',left:$('#mLeft').value||''}));save();ui.showNewMember=false;
   }
   else if(a==='newmember'){ui.showNewMember=true;ui.focus='#mLast'}
   else if(a==='cancelnewmember'){ui.showNewMember=false}
@@ -1023,14 +1034,18 @@ document.addEventListener('click',ev=>{
   else if(a==='clearleft'){const i=$('#mLeft');if(i)i.value='';return}
   else if(a==='savemember'){
     const m=db.members.find(x=>x.id===ui.editMember);
-    const first=$('#mFirst').value.trim(),last=$('#mLast').value.trim();
-    if(!first&&!last){alert('Bitte Nach- und Vornamen eingeben.');return}
-    m.first=first;m.last=last;m.instr=$('#mInstr').value;m.alumni=$('#mEY').value==='ehem';m.eyear=m.alumni?'':$('#mEY').value;m.letter=$('#mCL').value;m.joined=$('#mJoined').value||'';m.left=$('#mLeft').value||'';normMember(m);save();ui.editMember=null;
+    if(!readMemberForm(m))return;
+    save();ui.editMember=null;
   }
-  else if(a==='togglemember'){const m=db.members.find(x=>x.id===id);m.active=m.active===false;save()}
+  else if(a==='addpause'||a==='delpause'){
+    const m=db.members.find(x=>x.id===ui.editMember);if(!m)return;
+    if(!readMemberForm(m,true))return;
+    if(a==='addpause')m.pauses.push({from:today(),to:''});else m.pauses.splice(+b.dataset.i,1);
+    save();
+  }
   else if(a==='delmember'){
     const m=db.members.find(x=>x.id===id);
-    if(!confirm(`${dn(m)} wirklich löschen? Die Anwesenheiten gehen dabei verloren. Tipp: „Pausieren“ (⏸) oder ein Austritt behält alle Daten.`))return;
+    if(!confirm(`${dn(m)} wirklich löschen? Die Anwesenheiten gehen dabei verloren. Tipp: Ein Austrittsdatum oder eine Pause (unter „Ändern“) behält alle Daten.`))return;
     if(ui.editMember===id)ui.editMember=null;
     db.members=db.members.filter(x=>x.id!==id);db.events.forEach(x=>{x.present=x.present.filter(p=>p!==id);x.away=x.away.filter(p=>p!==id)});db.gigs.forEach(x=>{x.present=x.present.filter(p=>p!==id);x.undecided=x.undecided.filter(p=>p!==id);x.no=x.no.filter(p=>p!==id)});save();
   }
@@ -1098,6 +1113,7 @@ document.addEventListener('click',ev=>{
 });
 document.addEventListener('change',ev=>{
   const c=ev.target.dataset.c;if(!c)return;
+  if(c==='pz_from'||c==='pz_to'){const m=db.members.find(x=>x.id===ui.editMember),p=m&&m.pauses[+ev.target.dataset.i];if(p){p[c.slice(3)]=ev.target.value;save()}return}
   if(ev.target.dataset.c==='gpq')return;
   if(applySettingsField(ev.target))return;
   if(applyGigField(ev.target))return;

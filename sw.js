@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline nutzbar.
 // Wenn du die App später änderst, erhöhe die Zahl bei VERSION.
-const VERSION = 'orch-v5';
+const VERSION = 'orch-v6';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
