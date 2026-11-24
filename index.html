@@ -93,6 +93,7 @@ nav button.on{background:var(--acc);color:#fff;font-weight:600}
 .sugh{font-size:13px;color:var(--mute);margin-top:12px}
 .mt td{font-size:15px;padding:8px 4px}
 .mt td:nth-child(n+3){text-align:right;white-space:nowrap}
+.mt td:nth-child(5){text-align:left}
 .cond{border-bottom:1px solid var(--line);padding:10px 0}
 .count b{font-size:30px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));grid-auto-rows:1fr;gap:10px}
@@ -833,10 +834,11 @@ function viewMembers(){
 }
 
 /* ---------- Statistik ---------- */
+const zeugnis=q=>q>=.9?'mit sehr gutem Erfolg':q>=.75?'mit Erfolg':q>=.5?'teilgenommen':'–';
 const dec=x=>(Math.round(x*10)/10).toString().replace('.',',');
 const fmtMin=m=>m+' Min / '+dec(m/60)+' Std / '+dec(m/1440)+' Tage';
 function viewStats(){
-  const pm=probeMinutes();
+  
   const y=hjLabel(ui.hj),rg=hjRange(ui.hj);
   const t=today();
   // Es zählt nur, was schon stattgefunden hat (Datum bis einschließlich heute); entfallene Proben zählen nicht
@@ -854,13 +856,6 @@ function viewStats(){
   h+=`<div class="card"><div class="muted">Probenbeteiligung ${y} (nur Proben)</div>
     <div class="big">${slots?pct(got/slots):'–'}</div>
     <div class="muted">${pr.length?`Ø ${f1(prAvg)} Mitglieder pro Probe bei Ø ${f1(slots/pr.length)} Eingetragenen (${pr.length} Proben). Neue Mitglieder zählen ab ihrem Eintritt ins Orchester, ehemalige bis zu ihrem Austritt.`:'Noch keine Proben in diesem Jahr.'}</div></div>`;
-  h+=`<h2 style="margin-top:20px">Proben nach Instrument</h2><div class="card"><table>`+instrGroups().map(v=>{
-    const n=activeMembers().filter(m=>m.instr===v).length;
-    const sl=pr.reduce((s,e)=>s+elig(e).filter(m=>m.instr===v).length,0);
-    if(!n&&!sl)return'';
-    const a=avg(pr.map(e=>presentOfInstr(e,v)));
-    const g=pr.reduce((s,e)=>s+presentOfInstr(e,v),0);
-    return `<tr><td>${esc(instrLabel(v))}</td><td class="muted">${n} Mitglied${n===1?'':'er'}</td><td>${pr.length?'Ø '+f1(a)+(sl?' ('+pct(g/sl)+')':''):'–'}</td></tr>`}).join('')+`</table></div>`;
   // Anwesenheit pro Mitglied: höchster Anteil zuerst, die besten drei Prozentwerte farbig
   const rows=db.members.filter(m=>pr.some(e=>e.present.includes(m.id))||(m.active!==false&&(!m.joined||m.joined<=rg[1])&&(!m.left||m.left>=rg[0]))).map(m=>{
     const n=pr.filter(e=>e.present.includes(m.id)).length;
@@ -868,13 +863,14 @@ function viewStats(){
     return{m,n,tot,p:tot?Math.round(n/tot*100):-1};
   }).filter(r=>r.n>0||r.tot>0).sort((a,b)=>b.p-a.p||b.n-a.n||byName(a.m,b.m));
   const top=[...new Set(rows.filter(r=>r.p>0).map(r=>r.p))].slice(0,3);
-  h+=`<h2 style="margin-top:20px">Anwesenheit pro Mitglied</h2><div class="muted">Sortiert nach Anteil der besuchten Proben. Farbig: die drei besten Werte (bei Gleichstand auch mehr als drei Personen).</div><div class="card">`+(rows.length?`<table class="mt"><tr class="muted"><td>Name</td><td>Instrument</td><td>Proben</td><td>Zeit in Proben</td><td>Anteil</td></tr>`+rows.map(r=>{
+  h+=`<h2 style="margin-top:20px">Anwesenheit pro Mitglied</h2><div class="muted">Sortiert nach Anteil der besuchten Proben. Farbig: die drei besten Werte (bei Gleichstand auch mehr als drei Personen).</div><div class="card">`+(rows.length?`<table class="mt"><tr class="muted"><td>Name</td><td>Instrument</td><td>Proben</td><td>Anteil</td><td>Zeugnisbemerkung</td></tr>`+rows.map(r=>{
     const k=top.indexOf(r.p);
-    return `<tr class="${k>=0?'r'+(k+1):''}"><td>${esc(dn(r.m))}</td><td class="muted">${esc(instrLabel(r.m.instr))}${classOf(r.m)?' · '+esc(classOf(r.m)):''}</td><td>${r.n}/${r.tot}</td><td>${fmtMin(r.n*pm)}</td><td>${r.tot?r.p+' %':'–'}</td></tr>`}).join('')+`</table>`:`<span class="muted">Keine Daten.</span>`)+`</div>`;
+    return `<tr class="${k>=0?'r'+(k+1):''}"><td>${esc(dn(r.m))}</td><td class="muted">${esc(instrLabel(r.m.instr))}${classOf(r.m)?' · '+esc(classOf(r.m)):''}</td><td>${r.n}/${r.tot}</td><td>${r.tot?r.p+' %':'–'}</td><td>${r.tot?zeugnis(r.n/r.tot):'–'}</td></tr>`}).join('')+`</table>`:`<span class="muted">Keine Daten.</span>`)+`</div>`;
   const cnt={};gg.forEach(g=>(g.pieces||[]).forEach(p=>cnt[p]=(cnt[p]||0)+1));
   const ps=Object.entries(cnt).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'de'));
   const total=ps.reduce((n,[,k])=>n+k,0);
-  h+=`<h2 style="margin-top:20px">Stücke bei Auftritten</h2><div class="muted" style="margin-top:4px">${total?`Im Halbjahr ${y} hat das Orchester bei Auftritten insgesamt ${total===1?'ein Stück':total+' Stücke'} gesungen${ps.length!==total?` (${ps.length} verschiedene)`:''}.`:`Im Halbjahr ${y} wurden bei Auftritten noch keine Stücke gesungen.`}</div><div class="card">`+(ps.length?`<table>`+ps.map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n}×</td></tr>`).join('')+`</table>`:`<span class="muted">Noch keine Stücke eingetragen.</span>`)+`</div>`;
+  const fut=db.gigs.filter(g=>g.date>t&&g.date>=rg[0]&&g.date<=rg[1]);
+  h+=`<h2 style="margin-top:20px">Stücke bei Auftritten</h2><div class="muted" style="margin-top:4px">${total?`Im Halbjahr ${y} hat das Orchester bei Auftritten insgesamt ${total===1?'ein Stück':total+' Stücke'} gesungen${ps.length!==total?` (${ps.length} verschiedene)`:''}.`:`Im Halbjahr ${y} wurden bei Auftritten noch keine Stücke gesungen.`}${fut.length?` <br>Noch nicht gezählt: ${fut.length===1?'ein geplanter Auftritt':fut.length+' geplante Auftritte'} in diesem Halbjahr (${(k=>k===1?'1 Stück':k+' Stücke')(fut.reduce((n,g)=>n+g.pieces.length,0))}). Auftritte zählen erst ab ihrem Datum.`:''}</div><div class="card">`+(ps.length?`<table>`+ps.map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n}×</td></tr>`).join('')+`</table>`:`<span class="muted">Noch keine Stücke eingetragen.</span>`)+`</div>`;
   return h;
 }
 
