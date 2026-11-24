@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Orchester">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1f4e8c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Orchesterverwaltung</title>
+<style>
+:root{--fh:52px;--bg:#f4f1ee;--card:#fff;--fg:#1d1b1a;--mute:#76706b;--acc:#1f4e8c;--line:#e3ddd8;--on:#2f7d4f;--danger:#c0392b;--hl:#fff0cf;--hlb:#e0a030;--g1:#ffe49a;--g2:#e4e8ee;--g3:#f4d3b4;--abs:#fff1b8;--absb:#e5c964;--away:#f5cfca;--awayb:#e0958c;--und:#d9e4f2;--undb:#9db5d3;--gr:#dcf0e0;--grb:#7fc08f}
+@media(prefers-color-scheme:dark){:root{--bg:#161413;--card:#232020;--fg:#f1ece8;--mute:#a39b95;--acc:#4f86d0;--line:#38332f;--on:#3a9a62;--danger:#e5675a;--hl:#4a3a18;--hlb:#d9a441;--g1:#5c4a14;--g2:#3d424a;--g3:#583c25;--abs:#4f4318;--absb:#8a7424;--away:#5a2b28;--awayb:#8f4a44;--und:#2f3d50;--undb:#52708f;--gr:#1f3a28;--grb:#3f7a52}}
+*{box-sizing:border-box}
+body{margin:0;font:17px/1.4 -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--fg);padding-bottom:calc(92px + env(safe-area-inset-bottom));-webkit-text-size-adjust:100%}
+#app{max-width:1100px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 16px 16px}
+h1{font-size:28px;margin:6px 0}
+h2{font-size:19px;margin:0}
+.muted{color:var(--mute);font-size:15px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sp{flex:1;min-width:0}
+.card{background:var(--card);border-radius:14px;padding:14px 16px;margin:10px 0}
+.card.hl{background:var(--hl);border:2px solid var(--hlb)}
+input,select{font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+input[type=text],input:not([type]){width:100%}
+input[type=date]{min-width:0;max-width:100%}
+textarea{font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;margin-top:10px}
+input[type=time]{min-width:130px}
+.btn{font:inherit;background:var(--acc);color:#fff;border:0;border-radius:12px;padding:11px 18px;min-height:44px}
+.btn.sec{background:transparent;color:var(--acc);border:1.5px solid var(--acc)}
+.btn.danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+.btn.small{padding:6px 12px;min-height:36px;font-size:15px}
+.btn.wide{width:100%;margin:10px 0}
+.btn:disabled{opacity:.35}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;gap:4px;background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:10}
+nav button{flex:1;min-width:0;position:relative;background:none;border:0;border-radius:12px;font:inherit;font-size:11px;color:var(--mute);padding:6px 1px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button span{font-size:22px;line-height:1.2}
+nav button.on{background:var(--acc);color:#fff;font-weight:600}
+.dot{display:none;position:absolute;top:1px;left:calc(50% + 9px);width:13px;height:13px;border-radius:50%;background:#ff3b30;border:2px solid #fff}
+.dot.on{display:block}
+.dotin{display:inline-block;width:11px;height:11px;border-radius:50%;background:#ff3b30;margin-right:6px}
+.ev{display:flex;flex-wrap:wrap;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--card);border:0;border-radius:14px;padding:14px 16px;margin:8px 0;min-height:64px}
+.ev .box{width:28px;height:28px;flex:none;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;color:transparent;font-size:18px}
+.ev.on .box{background:var(--on);border-color:var(--on);color:#fff}
+.badge{display:inline-block;font-size:13px;padding:2px 10px;border-radius:99px;background:var(--bg);color:var(--mute);border:1px solid var(--line)}
+.badge.konzert{background:var(--acc);color:#fff;border-color:var(--acc)}
+.badge.gottesdienst{background:#8a5a2f;color:#fff;border-color:#8a5a2f}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin:8px 0 16px}
+.chip{display:flex;align-items:center;gap:6px;font:inherit;font-size:16px;font-weight:500;padding:0 10px;height:54px;min-width:0;overflow:hidden;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--fg);text-align:left}
+.chip .ck{width:1.1em;flex:none;visibility:hidden}
+.chip .t{flex:1;min-width:0;overflow:hidden;text-overflow:clip}
+.chip .tt{display:inline-block;white-space:nowrap}
+.chip.on{background:var(--on);border-color:var(--on);color:#fff}
+.chip.on .ck{visibility:visible}
+.chip.st .ck{visibility:visible}
+.chip.abs{background:var(--abs);border-color:var(--absb)}
+.chip.away{background:var(--away);border-color:var(--awayb)}
+.chip.und{background:var(--und);border-color:var(--undb)}
+/* Kompakte Instrumentenblöcke: so viele Spalten, wie auf den Bildschirm passen */
+.igrid{columns:240px;column-gap:12px;margin-top:10px}
+.igrid.mem{columns:330px}
+.ig{break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;background:var(--card);border-radius:12px;padding:8px 8px 6px;margin:0 0 10px;display:inline-block;width:100%}
+.ih{display:flex;align-items:center;gap:6px;margin:0 2px 6px;font-size:16px;min-height:32px}
+.ih .sp{line-height:1.15;overflow-wrap:anywhere}
+.ih .cnt{color:var(--mute);font-size:14px;white-space:nowrap}
+.btn.tiny{padding:3px 9px;min-height:30px;font-size:14px;border-radius:9px}
+.ichips{display:grid;gap:5px}
+.ichips .chip{height:42px;font-size:15px;border-radius:10px}
+.ig .piece{padding:6px 2px;gap:6px}
+.ig .piece:last-child{border-bottom:0}
+.ig .piece span{flex:1 1 120px}
+.ig .piece .btn.small{padding:4px 10px;min-height:38px;min-width:42px}
+.fm.m5{grid-template-columns:minmax(0,1.6fr) minmax(0,.7fr) minmax(0,1.2fr) minmax(0,1fr) auto}
+@media(max-width:760px){.fm.m5{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.ev.cx{opacity:.55}
+.ev.cx b{text-decoration:line-through}
+.gc{flex-wrap:nowrap;gap:8px;padding:12px 12px}
+.gc .gl{flex:1 1 0;min-width:0;overflow-wrap:anywhere;hyphens:auto;-webkit-hyphens:auto}
+.gc .gl .muted{font-size:14px}
+.yr{font-size:20px;font-weight:700;color:var(--acc);margin:22px 4px 0;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.gc .gv{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:72px;text-align:center}
+.gc .gv .vh{font-size:14px;color:var(--mute);line-height:1.2}
+.gc .gv b{font-size:19px;white-space:nowrap;font-weight:600}
+.gc .badge{flex:none;width:96px;text-align:center;font-size:12px;padding:3px 6px}
+.card.gr{background:var(--gr);border:2px solid var(--grb)}
+.tl{font-size:12px;line-height:1.3;color:var(--mute);margin-top:6px}
+.sug{max-height:240px;overflow:auto;border:1.5px solid var(--line);border-radius:10px;margin-top:10px;background:var(--bg)}
+.sg{display:block;width:100%;text-align:left;font:inherit;font-size:16px;color:var(--fg);background:none;border:0;border-bottom:1px solid var(--line);padding:11px 12px;min-height:44px}
+.sg:last-child{border-bottom:0}
+.sugh{font-size:13px;color:var(--mute);margin-top:12px}
+.mt td{font-size:15px;padding:8px 4px}
+.mt td:nth-child(n+3){text-align:right;white-space:nowrap}
+.cond{border-bottom:1px solid var(--line);padding:10px 0}
+.count b{font-size:30px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));grid-auto-rows:1fr;gap:10px}
+.grid .card{margin:0}
+.big{font-size:34px;font-weight:700}
+table{width:100%;border-collapse:collapse}
+td{padding:8px 6px;border-bottom:1px solid var(--line)}
+td:last-child,td:nth-child(3){text-align:right}
+tr.r1 td{background:var(--g1)}
+tr.r2 td{background:var(--g2)}
+tr.r3 td{background:var(--g3)}
+tr.r1 td:first-child,tr.r2 td:first-child,tr.r3 td:first-child{border-radius:8px 0 0 8px}
+tr.r1 td:last-child,tr.r2 td:last-child,tr.r3 td:last-child{border-radius:0 8px 8px 0}
+.piece{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.piece span{flex:1 1 140px;min-width:0}
+.piece b{min-width:28px}
+.warn{border:1.5px solid var(--danger)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.flag{font-weight:600;margin-top:4px}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.fgrid>label,.fgrid>div{display:block;min-width:0;font-size:15px;color:var(--mute)}
+.fgrid input,.fgrid select{display:block;width:100%;min-width:0;max-width:100%;margin-top:4px}
+.fgrid input:not([type=date]),.fgrid select{height:var(--fh)}
+.dwrap{display:flex;gap:8px;align-items:center;margin-top:4px}
+.dwrap .dw{flex:1 1 0;min-width:0;margin-top:0}
+/* Datumsfeld: feste Höhe wie alle anderen Felder, füllt genau seinen Rahmen und kann nie darüber hinausragen */
+.dw{position:relative;display:block;height:var(--fh);margin-top:4px;overflow:hidden;border-radius:10px}
+.dw input[type=date]{position:absolute;left:0;top:0;width:100%;height:100%;min-width:0;max-width:100%;margin:0;box-sizing:border-box}
+.dw input[type=date]{display:flex;align-items:center;-webkit-appearance:none;appearance:none;padding-top:0;padding-bottom:0;line-height:normal}
+.dw input::-webkit-date-and-time-value{text-align:left;min-width:0;margin:0}
+.dw input::-webkit-datetime-edit{padding:0}
+.sect{display:flex;align-items:center;gap:12px;margin:22px 0 6px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.sect::after{content:'';flex:1;height:2px;background:var(--line)}
+.fgrid .hint{align-self:end;padding-bottom:12px}
+@media(max-width:480px){.fgrid{grid-template-columns:minmax(0,1fr)}}
+.fm{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr)) minmax(0,1.3fr) auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.fm.hd{color:var(--mute);font-size:13px;padding-top:0}
+.fm .lb{display:none;color:var(--mute)}
+.fm .act{display:flex;gap:6px;justify-content:flex-end}
+@media(max-width:760px){.fm{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.fm.hd{display:none}.fm .nm{grid-column:1/-1;font-size:17px}.fm .lb{display:inline}.fm .act{grid-column:1/-1;justify-content:flex-start}}
+.lt{font-size:15px;font-weight:700;color:var(--acc);margin:14px 4px 0}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.filters input,.filters select{width:100%;min-width:0}
+.play{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.play .dw{flex:none;width:150px;margin-top:0}
+.play input:not([type=date]){flex:1 1 0;width:auto;min-width:0;max-width:100%;height:var(--fh)}
+.play .btn{flex:none}
+@media(max-width:430px){nav button{font-size:9.5px}nav button span{font-size:20px}}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;overflow:auto;padding:max(16px,env(safe-area-inset-top)) 16px 24px}
+.sheet{max-width:560px;margin:0 auto;background:var(--card);border-radius:16px;padding:14px}
+.sheet img{width:100%;display:block;border-radius:10px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav>
+  <button data-t="proben"><span>📅</span>Proben</button>
+  <button data-t="statistik"><span>📊</span>Statistik</button>
+  <button data-t="auftritte"><span>🎻</span>Auftritte</button>
+  <button data-t="repertoire"><span>📖</span>Repertoire</button>
+  <button data-t="mitglieder"><span>👥</span>Mitglieder</button>
+  <button data-t="sicherung"><span>⚙️</span>Einstellungen</button>
+</nav>
+<script>
+const KEY='orch-data-v1';
+const INSTR=['Querflöte','Klarinette','Alt-Saxophon','Fagott','Trompete','Horn','Tenorhorn','Posaune','Tuba','Elektrischer Bass','Violine','Cello','Schlagzeug','Klavier'];
+const TYPES={probe:'Probe',konzert:'Konzert',gottesdienst:'Gottesdienst'};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const f1=n=>n.toLocaleString('de-DE',{maximumFractionDigits:1});
+const pct=n=>Math.round(n*100)+' %';
+
+/* ---------- Namen: Vorname und Nachname ---------- */
+const dn=m=>m.last&&m.first?m.last+', '+m.first:(m.last||m.first||'(ohne Namen)');
+const byName=(a,b)=>(a.last||'').localeCompare(b.last||'','de')||(a.first||'').localeCompare(b.first||'','de');
+function normMember(m){
+  let first=m.first,last=m.last;
+  if(first===undefined&&last===undefined){
+    const p=String(m.name||'').trim().split(/\s+/).filter(Boolean);
+    last=p.length?p.pop():'';first=p.join(' ');
+  }
+  m.first=first||'';m.last=last||'';m.joined=m.joined||'';m.left=m.left||'';
+  m.instr=m.instr||'';
+  m.eyear=+m.eyear>0?+m.eyear:'';
+  m.letter=/^[a-d]$/.test(m.letter)?m.letter:'';
+  delete m.voice;delete m.birth;
+  m.name=(m.first+' '+m.last).trim();
+  return m;
+}
+const normGig=g=>{const n={title:'',location:'',note:'',times:[],pieces:[],pids:[],present:[],undecided:[],no:[],...g};delete n.away;['present','undecided','no','pieces','pids','times'].forEach(k=>{if(!Array.isArray(n[k]))n[k]=[]});while(n.pids.length<n.pieces.length)n.pids.push('');n.pids.length=n.pieces.length;return n};
+const normSettings=s=>{const n={name:'',founded:'',org:'',place:'',contact:'',probeDay:'4',probeFrom:'13:15',probeTo:'14:00',startGrade:5,conductors:[],...(s||{})};n.probeDay=String(n.probeDay);n.startGrade=+n.startGrade>=1&&+n.startGrade<=13?+n.startGrade:5;if(!Array.isArray(n.conductors))n.conductors=[];n.conductors=n.conductors.map(c=>({name:'',from:'',to:'',...c}));return n};
+const normEvent=e=>{const n={present:[],away:[],pieces:[],title:'',type:'probe',cancelled:false,...e};if(!Array.isArray(n.present))n.present=[];if(!Array.isArray(n.away))n.away=[];if(!Array.isArray(n.pieces))n.pieces=[];n.cancelled=!!n.cancelled;return n};
+const CATS=['Allgemein','Weihnachten','Klassik','Film & Pop','Jazz & Swing','Marsch'];
+const normPiece=p=>{const n={title:'',composer:'',extra:'',cat:'Allgemein',...p};if(!Array.isArray(n.plays))n.plays=[];if(!n.cat)n.cat='Allgemein';return n};
+
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&Array.isArray(d.members)&&Array.isArray(d.events)){d.members.forEach(normMember);d.events=d.events.map(normEvent);d.gigs=(Array.isArray(d.gigs)?d.gigs:[]).map(normGig);d.pieces=(Array.isArray(d.pieces)?d.pieces:[]).map(normPiece);d.settings=normSettings(d.settings);return d}}catch(e){}return{members:[],events:[],gigs:[],pieces:[],settings:normSettings()}}
+let db=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){alert('Speichern ist fehlgeschlagen. Bitte mache eine Sicherung.')}}
+let ui={tab:'proben',year:new Date().getFullYear(),eventId:null,showNew:false,showBulk:false,bulkYear:new Date().getFullYear()+(new Date().getMonth()>=8?1:0),editMember:null,showNewMember:false,gigId:null,showNewGig:false,listMode:false,listSel:[],listPieces:false,listTitle:'Termine des Orchesters',pieceId:null,showNewPiece:false,pf:{title:'',composer:'',extra:'',cat:'Allgemein'},pfMsg:'',rf:{q:'',composer:'',cat:''},shareImg:null,lastInstr:INSTR[0],msort:'instr',focus:null};
+
+const isFormer=m=>!!m.left&&m.left<=today();
+const inOrch=(m,d)=>(!m.joined||m.joined<=d)&&(!m.left||d<=m.left);
+const activeMembers=()=>db.members.filter(m=>m.active!==false&&!isFormer(m));
+const getEvent=()=>db.events.find(e=>e.id===ui.eventId);
+const getGig=()=>db.gigs.find(g=>g.id===ui.gigId);
+const getPiece=()=>db.pieces.find(p=>p.id===ui.pieceId);
+const presentCount=e=>e.present.filter(id=>db.members.some(m=>m.id===id)).length;
+const presentOfInstr=(e,v)=>e.present.filter(id=>{const m=db.members.find(x=>x.id===id);return m&&m.instr===v}).length;
+function years(){const s=new Set([new Date().getFullYear(),ui.year]);db.events.forEach(e=>s.add(+e.date.slice(0,4)));db.gigs.forEach(g=>s.add(+g.date.slice(0,4)));return[...s].sort((a,b)=>b-a)}
+const yearSelect=()=>`<select data-c="year" aria-label="Jahr">${years().map(v=>`<option ${v==ui.year?'selected':''}>${v}</option>`).join('')}</select>`;
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const WEEKDAYS=[['1','Montag'],['2','Dienstag'],['3','Mittwoch'],['4','Donnerstag'],['5','Freitag'],['6','Samstag'],['0','Sonntag']];
+const isProbe=e=>e.type==='probe';
+const isGig=e=>!Array.isArray(e.away);
+const marks=e=>isGig(e)?[...e.present,...e.undecided,...e.no]:[...e.present,...e.away];
+/* Drei Zustände pro Mitglied: anwesend (present), abgemeldet bzw. unentschieden (other), sonst abwesend */
+const awayList=e=>isGig(e)?e.undecided:e.away;
+const pcount=(e,v,list)=>list.filter(id=>{const m=db.members.find(x=>x.id===id);return m&&m.instr===v}).length;
+const gigCount=g=>{const ok=id=>db.members.some(m=>m.id===id),p=g.present.filter(ok).length,o=g.undecided.filter(ok).length;return p+'/'+eligibleAll(g).length+(o?' ('+o+')':'')};
+const instrLabel=v=>v||'Ohne Instrument';
+const instrGroups=()=>[...INSTR,...new Set(db.members.map(m=>m.instr).filter(i=>!INSTR.includes(i)))];
+const probeMinutes=()=>{const st=db.settings,a=(st.probeFrom||'').split(':'),b=(st.probeTo||'').split(':');if(a.length===2&&b.length===2){const m=(+b[0]*60+ +b[1])-(+a[0]*60+ +a[1]);if(m>0)return m}return 45};
+function nextProbeDate(){const wd=+db.settings.probeDay,d=new Date();for(let i=0;i<8&&d.getDay()!==wd;i++)d.setDate(d.getDate()+1);return ymd(d)}
+
+/* ---------- Datums-Helfer ---------- */
+const startOfToday=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())};
+const pd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const fmtD=s=>pd(s).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+const fmtDM=d=>d.toLocaleDateString('de-DE',{day:'numeric',month:'long'});
+const dayText=d=>d===0?'heute':d===1?'morgen':`in ${d} Tagen`;
+const agoText=d=>d===0?'heute':d===1?'gestern':`vor ${d} Tagen`;
+function span(from,to){ // volle Jahre und Monate zwischen zwei Daten
+  let months=(to.getFullYear()-from.getFullYear())*12+to.getMonth()-from.getMonth();
+  if(to.getDate()<from.getDate())months--;
+  if(months<0)months=0;
+  return{y:Math.floor(months/12),m:months%12};
+}
+const spanText=s=>s.y===0?`${s.m} Monate`:`${s.y} Jahre${s.m?`, ${s.m} Monat${s.m>1?'e':''}`:''}`;
+
+/* ---------- Proben ---------- */
+const eligibleFor=(e,v)=>db.members.filter(m=>m.instr===v&&((m.active!==false&&inOrch(m,e.date))||marks(e).includes(m.id))).sort(byName);
+const eligibleAll=e=>db.members.filter(m=>(m.active!==false&&inOrch(m,e.date))||marks(e).includes(m.id));
+const awayCount=e=>e.away.filter(id=>db.members.some(m=>m.id===id)).length;
+function probeRow(e){
+  const away=awayCount(e);
+  const sub=[esc(e.title)||'',!e.cancelled&&away?away+' abgemeldet':''].filter(Boolean).join(' · ');
+  return `<button class="ev ${e.cancelled?'cx':''}" data-a="open" data-id="${e.id}">
+    <div class="sp"><div><b>${fmt(e.date)}</b></div><div class="muted">${sub}</div></div>
+    ${e.cancelled?'<span class="badge">entfällt</span>':`<b style="min-width:70px;text-align:right">${presentCount(e)} 👥</b>`}</button>`;
+}
+function viewProben(){
+  const y=String(ui.year),t=today();
+  const all=db.events.filter(e=>e.date.startsWith(y));
+  const pr=all.filter(isProbe).sort((a,b)=>a.date.localeCompare(b.date));
+  const up=pr.filter(e=>e.date>=t);
+  const past=pr.filter(e=>e.date<t).reverse(); // jüngste zuerst
+  const old=all.filter(e=>!isProbe(e)).sort((a,b)=>b.date.localeCompare(a.date));
+  const held=pr.filter(e=>e.date<=t&&!e.cancelled).length;
+  const ahead=pr.filter(e=>e.date>t&&!e.cancelled).length;
+  const cx=pr.filter(e=>e.cancelled).length;
+  let h=`<div class="row"><h1 class="sp">Proben</h1>${yearSelect()}</div>`;
+  h+=`<div class="muted">${y}: ${held} Proben bis heute · ${ahead} weitere geplant · ${cx} entfallen</div>`;
+  if(!db.members.length)h+=`<div class="card">Tipp: Lege zuerst unter „Mitglieder“ deine Schülerinnen und Schüler an.</div>`;
+  if(ui.showNew){
+    h+=`<div class="card"><h2>Neue Probe</h2>
+      <div class="row" style="margin:10px 0"><input type="date" id="nDate" value="${nextProbeDate()}"></div>
+      <input id="nTitle" placeholder="Bemerkung (optional)" autocomplete="off">
+      <div class="row" style="margin-top:12px"><button class="btn" data-a="create">Anlegen</button><button class="btn sec" data-a="cancelnew">Abbrechen</button></div></div>`;
+  }else if(ui.showBulk){
+    h+=`<div class="card"><h2>Proben für ein ganzes Jahr anlegen</h2>
+      <div class="muted" style="margin:6px 0 10px">Für jeden gewählten Wochentag im Jahr wird eine Probe angelegt. Tage, an denen es schon eine Probe gibt, werden übersprungen.</div>
+      <div class="row" style="margin-bottom:12px"><input type="number" id="bYear" inputmode="numeric" min="2000" max="2100" value="${ui.bulkYear}" style="width:110px"><select id="bDay">${WEEKDAYS.map(([k,l])=>`<option value="${k}" ${k===String(db.settings.probeDay)?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="row"><button class="btn" data-a="dobulk">Proben anlegen</button><button class="btn sec" data-a="cancelbulk">Abbrechen</button></div></div>`;
+  }else h+=`<div class="row" style="margin:12px 0"><button class="btn sp" data-a="new">+ Neue Probe</button><button class="btn sec" data-a="bulk">Ganzes Jahr anlegen</button></div>`;
+  if(!pr.length)h+=`<div class="muted" style="margin-top:16px">Noch keine Proben in ${y}.</div>`;
+  if(up.length)h+=`<h2 style="margin-top:18px">Anstehend</h2>`+up.map(probeRow).join('');
+  if(past.length)h+=`<h2 style="margin-top:18px">Vergangen</h2>`+past.map(probeRow).join('');
+  if(old.length)h+=`<h2 style="margin-top:22px">Alte Einträge</h2><div class="muted">Früher unter „Termine“ eingetragene Konzerte und Gottesdienste. Sie zählen nicht in der Statistik. Lege sie unter „Auftritte“ neu an und lösche sie danach hier.</div>`+
+    old.map(e=>`<button class="ev" data-a="open" data-id="${e.id}"><div class="sp"><div><b>${fmt(e.date)}</b></div><div class="muted">${esc(e.title)||''}</div></div><span class="badge ${e.type}">${TYPES[e.type]||''}</span><b style="min-width:70px;text-align:right">${presentCount(e)} 👥</b></button>`).join('');
+  return h;
+}
+
+/* Ein Mitglied als Feld: ✓ anwesend (grün), ○ abwesend (gelb), ✗ abgemeldet (rot, nur Proben), ? unentschieden (blau, nur Auftritte) */
+function memberChip(m,e,act){
+  const s=e.present.includes(m.id)?'on':isGig(e)?(e.undecided.includes(m.id)?'und':e.no.includes(m.id)?'away':'abs'):(e.away.includes(m.id)?'away':'abs');
+  const sym={on:'✓',abs:'○',away:'✗',und:'?'}[s];
+  return `<button class="chip st ${s}" data-a="${act}" data-id="${m.id}"><span class="ck">${sym}</span><span class="t"><span class="tt">${esc(dn(m))}</span></span></button>`;
+}
+function instrSections(e,tg,al,no){
+  const gig=isGig(e);let h='<div class="igrid">';
+  for(const v of instrGroups()){
+    const ms=eligibleFor(e,v);if(!ms.length)continue;
+    const o=pcount(e,v,awayList(e));
+    h+=`<div class="ig"><div class="ih"><b class="sp">${esc(instrLabel(v))}</b><span class="cnt">${presentOfInstr(e,v)}/${ms.length}${o?(gig?` (${o})`:` · ${o} ✗`):''}</span>
+      <button class="btn sec tiny" data-a="${al}" data-v="${esc(v)}">alle</button></div>
+      <div class="ichips">${ms.map(m=>memberChip(m,e,tg)).join('')}</div></div>`;
+  }
+  return h+'</div>';
+}
+/* Reihum tippen: abwesend → anwesend → abgemeldet (Proben) bzw. unentschieden (Auftritte) → abwesend */
+function cycle(e,id){
+  const rm=(L)=>{const i=L.indexOf(id);if(i>=0)L.splice(i,1)};
+  if(isGig(e)){ // offen → dabei → unentschieden → nein → offen
+    if(e.present.includes(id)){rm(e.present);e.undecided.push(id)}
+    else if(e.undecided.includes(id)){rm(e.undecided);e.no.push(id)}
+    else if(e.no.includes(id)){rm(e.no)}
+    else e.present.push(id);
+  }else{ // abwesend → anwesend → abgemeldet → abwesend
+    if(e.present.includes(id)){rm(e.present);e.away.push(id)}
+    else if(e.away.includes(id))rm(e.away);
+    else e.present.push(id);
+  }
+}
+function setAll(e,v){
+  const gig=isGig(e),skip=gig?e.no:e.away;
+  const ids=db.members.filter(m=>(v===null||m.instr===v)&&m.active!==false&&inOrch(m,e.date)&&!skip.includes(m.id)).map(m=>m.id);
+  e.present=[...new Set([...e.present,...ids])];
+  if(gig){const s=new Set(ids);e.undecided=e.undecided.filter(x=>!s.has(x))}
+}
+function setNone(e,v){
+  const ids=new Set(db.members.filter(m=>v===null||m.instr===v).map(m=>m.id));
+  e.present=e.present.filter(x=>!ids.has(x));
+  if(isGig(e)){e.undecided=e.undecided.filter(x=>!ids.has(x));e.no=e.no.filter(x=>!ids.has(x))}
+}
+function viewEvent(){
+  const e=getEvent();if(!e){ui.eventId=null;return viewProben()}
+  const probe=isProbe(e),awayN=awayCount(e);
+  const allPieces=[...new Set([...db.events.flatMap(x=>x.pieces),...db.pieces.map(p=>p.title).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,'de'));
+  let h=`<button class="btn sec small" data-a="back">‹ Zurück</button>
+  <div class="card"><div class="row" style="${probe?'':'margin-bottom:10px'}"><input type="date" data-c="evdate" value="${e.date}"><input data-c="evtitle" style="width:auto;flex:1 1 200px" placeholder="${probe?'Bemerkung, z. B. Sommerferien':'Titel oder Ort (optional)'}" value="${esc(e.title)}" autocomplete="off">
+  ${probe?`<button class="chip ${e.cancelled?'st away':''}" style="flex:none;width:190px;height:44px" data-a="togglecancel"><span class="ck">✗</span><span class="t"><span class="tt">Probe entfällt</span></span></button>`:''}</div>
+  ${probe?'':`<div class="muted" style="margin-top:10px">Alter Eintrag. Er zählt nicht in der Statistik. Konzerte und Gottesdienste legst du unter „Auftritte“ an.</div>`}</div>`;
+  if(e.cancelled){
+    h+=`<div class="card muted">Diese Probe ist entfallen und zählt nicht in der Statistik. Die Bemerkung oben dient als Grund.</div>`;
+  }else{
+    h+=`<div class="card count"><div class="row"><div class="sp"><b>${presentCount(e)}</b> von ${eligibleAll(e).length} anwesend${awayN?` · ${awayN} abgemeldet`:''}<div class="muted">Antippen: gelb offen, ✓ da, ✗ abgemeldet</div></div><button class="btn sec small" data-a="allx">alle da</button><button class="btn sec small" data-a="nonex">keine</button></div></div>`;
+    h+=instrSections(e,'toggle','all','none');
+  }
+  if(!probe)h+=`<div class="card"><h2>Gesungene Stücke</h2>
+    ${e.pieces.map((p,i)=>`<div class="piece"><span>${esc(p)}</span><button class="btn danger small" data-a="delpiece" data-i="${i}">✕</button></div>`).join('')}
+    <div class="row" style="margin-top:10px"><input id="pInput" class="sp" list="pList" placeholder="Stück hinzufügen" autocomplete="off"><datalist id="pList">${allPieces.map(p=>`<option value="${esc(p)}">`).join('')}</datalist><button class="btn" data-a="addpiece">Hinzufügen</button></div></div>`;
+  h+=`<button class="btn danger wide" data-a="delevent">${probe?'Probe löschen':'Eintrag löschen'}</button>`;
+  return h;
+}
+
+/* Schrift in den Namensfeldern verkleinern, bis der Name hineinpasst (das Feld bleibt gleich groß) */
+function fitChips(){
+  document.querySelectorAll('.chip .t').forEach(box=>{
+    const tt=box.firstElementChild;if(!tt)return;
+    const lim=Math.max(22,((box.closest('.chip')||box).clientHeight||44)-8);
+    const room=()=>box.clientWidth-2; // 2 px Reserve, gemessen wird auf Bruchteile von Pixeln genau
+    tt.style.display='inline-block';tt.style.whiteSpace='nowrap';tt.style.lineHeight='';tt.style.overflowWrap='';
+    let s=16;box.style.fontSize=s+'px';
+    while(tt.getBoundingClientRect().width>room()&&s>11){s-=0.5;box.style.fontSize=s+'px'}
+    if(tt.getBoundingClientRect().width>room()){ // sehr langer Name: zwei kleine Zeilen im selben Feld
+      tt.style.display='block';tt.style.whiteSpace='normal';tt.style.lineHeight='1.15';tt.style.overflowWrap='anywhere';
+      s=14;box.style.fontSize=s+'px';
+      while(tt.getBoundingClientRect().height>lim&&s>8){s-=0.5;box.style.fontSize=s+'px'}
+    }
+  });
+}
+
+/* ---------- Auftritte ---------- */
+const fmtTime=t=>{if(!t)return'';const [h,m]=t.split(':');return (+h)+':'+m+' Uhr'};
+const longDate=d=>new Date(d+'T12:00:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const timeLine=t=>[t.label,fmtTime(t.time)].filter(Boolean).join(' ');
+const gigTitle=g=>g.title||'Auftritt';
+const listGigs=()=>db.gigs.filter(g=>ui.listSel.includes(g.id)).sort((a,b)=>a.date.localeCompare(b.date));
+
+const byYear=(list,fn)=>{let y='',h='';list.forEach(g=>{const gy=g.date.slice(0,4);if(gy!==y){y=gy;h+=`<div class="yr">${y}</div>`}h+=fn(g)});return h};
+function gigCard(g){
+  return `<button class="ev gc" data-a="opengig" data-id="${g.id}">
+    <div class="gl"><div><b>${esc(gigTitle(g))}</b></div><div class="muted">${fmt(g.date)}${g.location?' · '+esc(g.location):''}</div></div>
+    <div class="gv"><b>${gigCount(g)}</b><span class="vh">dabei</span></div></button>`;
+}
+function viewGigs(){
+  if(ui.listMode)return viewGigList();
+  const t=today();
+  const up=db.gigs.filter(g=>g.date>=t).sort((a,b)=>a.date.localeCompare(b.date));
+  const past=db.gigs.filter(g=>g.date<t).sort((a,b)=>b.date.localeCompare(a.date));
+  let h=`<h1>Auftritte</h1><div class="muted">Auftritte planen und als Bild oder Text teilen.</div>`;
+  if(ui.showNewGig){
+    h+=`<div class="card"><h2>Neuer Auftritt</h2>
+      <div class="row" style="margin:10px 0"><input type="date" id="gDate" value="${today()}"></div>
+      <input id="gTitle" placeholder="Titel (z. B. Weihnachtskonzert)" autocomplete="off">
+      <div class="row" style="margin-top:12px"><button class="btn" data-a="creategig">Anlegen</button><button class="btn sec" data-a="cancelnewgig">Abbrechen</button></div></div>`;
+  }else h+=`<div class="row" style="margin:12px 0"><button class="btn sp" data-a="newgig">+ Neuer Auftritt</button>${db.gigs.length?'<button class="btn sec" data-a="listmode">Liste teilen</button>':''}</div>`;
+  if(!db.gigs.length)h+=`<div class="muted" style="margin-top:16px">Noch keine Auftritte angelegt.</div>`;
+  if(up.length)h+=`<h2 style="margin-top:18px">Anstehend</h2>`+byYear(up,gigCard);
+  if(past.length)h+=`<h2 style="margin-top:18px">Vergangen</h2>`+byYear(past,gigCard);
+  return h;
+}
+function viewGigList(){
+  const t=today();
+  const all=[...db.gigs].sort((a,b)=>a.date.localeCompare(b.date));
+  const up=all.filter(g=>g.date>=t),past=all.filter(g=>g.date<t).reverse();
+  const row=g=>`<button class="ev ${ui.listSel.includes(g.id)?'on':''}" data-a="tgllist" data-id="${g.id}"><span class="box">✓</span>
+    <div class="sp"><div><b>${esc(gigTitle(g))}</b></div><div class="muted">${fmt(g.date)}${g.location?' · '+esc(g.location):''}</div></div></button>`;
+  const n=ui.listSel.length;
+  return `<button class="btn sec small" data-a="backlist">‹ Zurück</button>
+  <h1 style="margin-top:12px">Liste teilen</h1><div class="muted">Wähle die Auftritte aus, die in der Liste stehen sollen.</div>
+  <div class="card"><div class="muted">Überschrift</div><input data-c="ltitle" value="${esc(ui.listTitle)}" autocomplete="off" style="margin-top:6px">
+    <div class="chips" style="margin:12px 0 0"><button class="chip ${ui.listPieces?'on':''}" data-a="tglpieces"><span class="ck">✓</span><span class="t"><span class="tt">Stücke mit anzeigen</span></span></button></div></div>
+  <div class="card"><div class="muted" style="margin-bottom:10px">${n} Auftritt${n===1?'':'e'} ausgewählt</div>
+    <div class="row"><button class="btn" data-a="listimg" ${n?'':'disabled'}>Als Bild</button><button class="btn sec" data-a="listtxt" ${n?'':'disabled'}>Als Text</button></div></div>
+  ${up.length?`<h2 style="margin-top:16px">Anstehend</h2>`+byYear(up,row):''}
+  ${past.length?`<h2 style="margin-top:16px">Vergangen</h2>`+byYear(past,row):''}`;
+}
+const gpl=g=>g.pieces.map((t,i)=>{const p=db.pieces.find(x=>x.id===g.pids[i]);return p?pieceLabel(p):t});
+const pieceLabel=p=>{const x=[p.composer,p.extra].map(t=>(t||'').trim()).filter(Boolean);return (p.title||'(ohne Titel)')+(x.length?' ('+x.join('/')+')':'')};
+function sugHtml(g,q){
+  q=(q||'').trim().toLowerCase();
+  if(!db.pieces.length)return `<div class="muted" style="padding:10px 12px">Das Repertoire ist noch leer. Gib oben einen Titel ein, er wird dort angelegt.</div>`;
+  const ps=db.pieces.filter(p=>!g.pids.includes(p.id)&&(!q||pieceLabel(p).toLowerCase().includes(q))).sort(byPiece);
+  if(!ps.length)return `<div class="muted" style="padding:10px 12px">${q?'Kein passendes Stück im Repertoire. Mit „Hinzufügen“ wird es neu aufgenommen.':'Alle Stücke des Repertoires sind schon dabei.'}</div>`;
+  return ps.map(p=>`<button class="sg" data-a="pickgpiece" data-id="${p.id}">${esc(pieceLabel(p))}</button>`).join('');
+}
+/* Stück zu einem Auftritt: im Repertoire unter „Gesungen“ eintragen (Datum und Titel des Auftritts) */
+function addGigPiece(g,p){
+  g.pieces.push(p.title);g.pids.push(p.id);
+  if(!p.plays.some(x=>x.gig===g.id))p.plays.push({id:uid(),date:g.date,occasion:gigTitle(g),gig:g.id});
+}
+function dropGigPiece(g,i){
+  const pid=g.pids[i];g.pieces.splice(i,1);g.pids.splice(i,1);
+  if(pid&&!g.pids.includes(pid)){const p=db.pieces.find(x=>x.id===pid);if(p)p.plays=p.plays.filter(x=>x.gig!==g.id)}
+}
+function syncPlays(g){
+  g.pids.forEach(pid=>{const p=db.pieces.find(x=>x.id===pid);if(p)p.plays.forEach(x=>{if(x.gig===g.id){x.date=g.date;x.occasion=gigTitle(g)}})});
+}
+/* Ältere Auftritte: Stücke ohne Verknüpfung ins Repertoire übernehmen */
+function linkGigPieces(){
+  let ch=false;
+  db.gigs.forEach(g=>g.pieces.forEach((t,i)=>{
+    if(g.pids[i])return;
+    const title=(t||'').trim();if(!title)return;
+    let p=db.pieces.find(x=>same(x.title,title));
+    if(!p){p=normPiece({id:uid(),title});db.pieces.push(p)}
+    g.pids[i]=p.id;
+    if(!p.plays.some(x=>x.gig===g.id||x.date===g.date))p.plays.push({id:uid(),date:g.date,occasion:gigTitle(g),gig:g.id});
+    ch=true;
+  }));
+  if(ch)save();
+}
+function viewGig(){
+  const g=getGig();if(!g){ui.gigId=null;return viewGigs()}
+  const LABELS=['Einsingen','Treffpunkt','Generalprobe','Einlass','Beginn','Gottesdienst','Konzert'];
+  return `<button class="btn sec small" data-a="backgig">‹ Zurück</button>
+  <div class="card" style="margin-top:12px">
+    <div class="row" style="margin-bottom:10px"><input type="date" data-c="gdate" value="${g.date}"></div>
+    <input data-c="gtitle" placeholder="Titel" value="${esc(g.title)}" autocomplete="off">
+  </div>
+  <div class="card count"><b>${g.present.filter(id=>db.members.some(m=>m.id===id)).length}</b> anwesend${g.undecided.length?` · ${g.undecided.filter(id=>db.members.some(m=>m.id===id)).length} unentschieden`:''}<div class="muted">Antippen schaltet durch: gelb (offen), ✓ dabei, ? unentschieden, ✗ nein. „Nein“ wird nicht mitgezählt.</div></div>
+  <div class="row" style="justify-content:flex-end;margin:6px 0 0"><button class="btn sec small" data-a="gallx">alle dabei</button><button class="btn sec small" data-a="gnonex">keine</button></div>
+  ${instrSections(g,'gtoggle','gall','gnone')}
+  <div class="card"><h2>Zeiten</h2>
+    ${g.times.map((t,i)=>`<div class="row" style="margin-top:10px"><input type="time" data-c="gtime" data-i="${i}" value="${esc(t.time)}"><input class="sp" data-c="glabel" data-i="${i}" list="lList" placeholder="z. B. Einsingen" value="${esc(t.label)}" autocomplete="off"><button class="btn danger small" data-a="deltime" data-i="${i}">✕</button></div>`).join('')}
+    <datalist id="lList">${LABELS.map(l=>`<option value="${l}">`).join('')}</datalist>
+    <button class="btn sec small" style="margin-top:12px" data-a="addtime">+ Zeit hinzufügen</button></div>
+  <div class="card"><h2>Ort</h2><input data-c="gloc" placeholder="z. B. Jakobuskirche" value="${esc(g.location)}" autocomplete="off" style="margin-top:10px"></div>
+  <div class="card"><h2>Stücke</h2>
+    ${gpl(g).map((p,i)=>`<div class="piece"><b>${i+1}.</b><span>${esc(p)}</span><button class="btn sec small" data-a="upgpiece" data-i="${i}" ${i===0?'disabled':''}>↑</button><button class="btn sec small" data-a="downgpiece" data-i="${i}" ${i===g.pieces.length-1?'disabled':''}>↓</button><button class="btn danger small" data-a="delgpiece" data-i="${i}">✕</button></div>`).join('')}
+    <div class="row" style="margin-top:10px"><input id="gpInput" data-c="gpq" class="sp" placeholder="Stück suchen oder neu eingeben" autocomplete="off"><button class="btn" data-a="addgpiece">Hinzufügen</button></div>
+    <div class="sugh">Vorschläge aus dem Repertoire (antippen zum Hinzufügen). Ein neuer Titel wird automatisch ins Repertoire aufgenommen.</div>
+    <div id="gpSug" class="sug">${sugHtml(g,'')}</div></div>
+  <div class="card"><h2>Hinweise</h2><textarea data-c="gnote" rows="3" placeholder="Optional, z. B. Kleidung, Parken, Treffpunkt">${esc(g.note)}</textarea></div>
+  <div class="card"><h2>Teilen</h2><div class="muted" style="margin:6px 0 12px">Erstellt eine Vorschau, die du in deine WhatsApp-Gruppe schicken kannst.</div>
+    <div class="row"><button class="btn" data-a="gigimg">Als Bild</button><button class="btn sec" data-a="gigtxt">Als Text</button></div></div>
+  <button class="btn danger wide" data-a="delgig">Auftritt löschen</button>`;
+}
+function applyGigField(el){
+  const c=el.dataset.c;
+  if(!/^g(title|date|loc|note|time|label)$/.test(c))return false;
+  const g=getGig();if(!g)return true;
+  const i=+el.dataset.i;
+  if(c==='gtitle'){g.title=el.value;syncPlays(g)}
+  else if(c==='gdate'){if(el.value){g.date=el.value;syncPlays(g)}}
+  else if(c==='gloc')g.location=el.value;
+  else if(c==='gnote')g.note=el.value;
+  else if(c==='gtime'&&g.times[i])g.times[i].time=el.value;
+  else if(c==='glabel'&&g.times[i])g.times[i].label=el.value;
+  save();return true;
+}
+
+/* Bild für WhatsApp: wird auf einer Zeichenfläche gemalt, braucht kein Internet */
+const FONT='-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif';
+function gigCanvas(g){
+  const W=1080,P=72,CW=W-2*P,F=FONT;
+  const c=document.createElement('canvas');c.width=W;c.height=300;
+  const ctx=c.getContext('2d');
+  const set=(sz,wt)=>{ctx.font=(wt||400)+' '+sz+'px '+F;ctx.textBaseline='top'};
+  const wrap=(t,w)=>{
+    const out=[];
+    String(t).split('\n').forEach(par=>{
+      const words=par.split(/\s+/).filter(Boolean);
+      if(!words.length){out.push('');return}
+      let line='';
+      words.forEach(wd=>{const tst=line?line+' '+wd:wd;if(ctx.measureText(tst).width>w&&line){out.push(line);line=wd}else line=tst});
+      out.push(line);
+    });
+    return out;
+  };
+  const title=gigTitle(g),dateTxt=longDate(g.date);
+  const times=(g.times||[]).filter(t=>t.time||t.label);
+  const pieces=gpl(g);
+  function run(draw){
+    const txt=(s,x,y,col)=>{if(draw){ctx.fillStyle=col;ctx.fillText(s,x,y)}};
+    set(66,700);const tl=wrap(title,CW);
+    const head=P+tl.length*78+14+46+Math.round(P*.7);
+    if(draw){ctx.fillStyle='#faf6f1';ctx.fillRect(0,0,W,c.height);ctx.fillStyle='#1f4e8c';ctx.fillRect(0,0,W,head)}
+    let y=P;
+    set(66,700);tl.forEach((l,i)=>txt(l,P,y+i*78,'#ffffff'));y+=tl.length*78+14;
+    set(40,400);txt(dateTxt,P,y,'#dce8f7');
+    y=head+Math.round(P*.7);
+    const section=n=>{set(28,700);txt(n.toUpperCase(),P,y,'#1f4e8c');y+=28+18};
+    if(times.length){
+      section('Zeiten');
+      times.forEach(t=>{
+        const tt=fmtTime(t.time),x0=tt?P+250:P;
+        set(40,400);const ll=wrap(t.label||'',CW-(x0-P));
+        set(40,700);txt(tt,P,y,'#1d1b1a');
+        set(40,400);ll.forEach((l,i)=>txt(l,x0,y+i*52,'#1d1b1a'));
+        y+=Math.max(1,ll.length)*52+10;
+      });
+      y+=30;
+    }
+    if(g.location){section('Ort');set(40,400);wrap(g.location,CW).forEach(l=>{txt(l,P,y,'#1d1b1a');y+=52});y+=30}
+    if(pieces.length){
+      section('Stücke');
+      pieces.forEach((p,i)=>{
+        set(40,400);const pl=wrap(p,CW-70);
+        set(40,700);txt((i+1)+'.',P,y,'#1f4e8c');
+        set(40,400);pl.forEach((l,k)=>txt(l,P+70,y+k*52,'#1d1b1a'));
+        y+=pl.length*52+10;
+      });
+      y+=30;
+    }
+    if(g.note){section('Hinweise');set(36,400);wrap(g.note,CW).forEach(l=>{txt(l,P,y,'#444444');y+=48});y+=30}
+    return y+Math.round(P*.3);
+  }
+  const H=Math.ceil(run(false));
+  c.height=H;
+  run(true);
+  return c;
+}
+/* Mehrere Auftritte als Liste in einem Bild */
+function gigListCanvas(gigs,opt){
+  const W=1080,P=64,IN=30,CW=W-2*P-IN,F=FONT;
+  const c=document.createElement('canvas');c.width=W;c.height=300;
+  const ctx=c.getContext('2d');
+  const set=(sz,wt)=>{ctx.font=(wt||400)+' '+sz+'px '+F;ctx.textBaseline='top'};
+  const wrap=(t,w)=>{
+    const out=[];
+    String(t).split('\n').forEach(par=>{
+      const words=par.split(/\s+/).filter(Boolean);
+      if(!words.length){out.push('');return}
+      let line='';
+      words.forEach(wd=>{const tst=line?line+' '+wd:wd;if(ctx.measureText(tst).width>w&&line){out.push(line);line=wd}else line=tst});
+      out.push(line);
+    });
+    return out;
+  };
+  const items=gigs.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const head=(opt&&opt.title)||'Auftritte';
+  function run(draw){
+    const txt=(s,x,y,col)=>{if(draw){ctx.fillStyle=col;ctx.fillText(s,x,y)}};
+    set(52,700);const tl=wrap(head,W-2*P);
+    const headH=38+tl.length*62+38;
+    if(draw){ctx.fillStyle='#faf6f1';ctx.fillRect(0,0,W,c.height);ctx.fillStyle='#1f4e8c';ctx.fillRect(0,0,W,headH)}
+    set(52,700);tl.forEach((l,i)=>txt(l,P,38+i*62,'#ffffff'));
+    let y=headH+44;
+    items.forEach((g,idx)=>{
+      const y0=y;const x=P+IN;
+      set(32,700);wrap(longDate(g.date),CW).forEach(l=>{txt(l,x,y,'#1f4e8c');y+=42});
+      set(44,700);wrap(gigTitle(g),CW).forEach(l=>{txt(l,x,y,'#1d1b1a');y+=56});
+      const times=(g.times||[]).filter(t=>t.time||t.label);
+      set(34,400);
+      if(times.length)wrap(times.map(t=>[fmtTime(t.time),t.label].filter(Boolean).join(' ')).join('   ·   '),CW).forEach(l=>{txt(l,x,y,'#1d1b1a');y+=46});
+      if(g.location){set(34,400);wrap('Ort: '+g.location,CW).forEach(l=>{txt(l,x,y,'#1d1b1a');y+=46})}
+      if(opt&&opt.pieces&&g.pieces.length){
+        y+=6;
+        gpl(g).forEach((p,i)=>{
+          set(32,400);const pl=wrap(p,CW-56);
+          set(32,700);txt((i+1)+'.',x,y,'#1f4e8c');
+          set(32,400);pl.forEach((l,k)=>txt(l,x+56,y+k*42,'#555555'));
+          y+=pl.length*42;
+        });
+      }
+      if(draw){ctx.fillStyle='#1f4e8c';ctx.fillRect(P,y0+4,8,Math.max(10,y-y0-10))}
+      y+=26;
+      if(idx<items.length-1){if(draw){ctx.fillStyle='#e3ddd8';ctx.fillRect(P,y,W-2*P,2)}y+=34}
+    });
+    return y+Math.round(P*.5);
+  }
+  const H=Math.ceil(run(false));
+  c.height=H;
+  run(true);
+  return c;
+}
+function gigText(g){
+  const L=['*'+gigTitle(g)+'*',longDate(g.date)];
+  (g.times||[]).filter(t=>t.time||t.label).forEach(t=>L.push(timeLine(t)));
+  if(g.location)L.push('Ort: '+g.location);
+  if(g.pieces.length){L.push('','Stücke:');gpl(g).forEach((p,i)=>L.push((i+1)+'. '+p))}
+  if(g.note)L.push('',g.note);
+  return L.join('\n');
+}
+function gigListText(gigs,opt){
+  const L=['*'+((opt&&opt.title)||'Auftritte')+'*'];
+  gigs.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(g=>{
+    L.push('','*'+longDate(g.date)+'*',gigTitle(g));
+    (g.times||[]).filter(t=>t.time||t.label).forEach(t=>L.push(timeLine(t)));
+    if(g.location)L.push('Ort: '+g.location);
+    if(opt&&opt.pieces&&g.pieces.length){gpl(g).forEach((p,i)=>L.push((i+1)+'. '+p))}
+  });
+  return L.join('\n');
+}
+function closeShare(){if(ui.shareImg){try{URL.revokeObjectURL(ui.shareImg.url)}catch(e){}ui.shareImg=null}}
+function showCanvas(c,name){
+  c.toBlob(b=>{
+    if(!b){alert('Das Bild konnte nicht erstellt werden.');return}
+    closeShare();
+    ui.shareImg={url:URL.createObjectURL(b),file:new File([b],name,{type:'image/png'})};
+    render();
+  },'image/png');
+}
+async function shareFile(){
+  const s=ui.shareImg;if(!s)return;
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[s.file]})){await navigator.share({files:[s.file]});return}
+  }catch(err){if(err&&err.name==='AbortError')return}
+  const a=document.createElement('a');a.href=s.url;a.download=s.file.name;document.body.appendChild(a);a.click();a.remove();
+}
+async function shareText(text){
+  try{if(navigator.share){await navigator.share({text});return}}catch(err){if(err&&err.name==='AbortError')return}
+  try{await navigator.clipboard.writeText(text);alert('Text kopiert. Du kannst ihn jetzt in WhatsApp einfügen.')}catch(e){prompt('Text zum Kopieren:',text)}
+}
+const shareOverlay=()=>ui.shareImg?`<div class="overlay"><div class="sheet"><img src="${ui.shareImg.url}" alt="Vorschau">
+  <div class="row" style="margin-top:12px"><button class="btn sp" data-a="doshare">Teilen</button><button class="btn sec" data-a="closeshare">Schließen</button></div>
+  <div class="muted" style="margin-top:10px">„Teilen“ öffnet das iPad-Menü. Wähle dort WhatsApp und dann deine Orchestergruppe. Alternativ hältst du das Bild gedrückt und wählst „Zu Fotos hinzufügen“.</div></div></div>`:'';
+
+/* ---------- Repertoire ---------- */
+const catOf=p=>p.cat||'Allgemein';
+const same=(a,b)=>(a||'').trim().toLowerCase()===(b||'').trim().toLowerCase();
+const byPiece=(a,b)=>(a.title||'').localeCompare(b.title||'','de')||(a.composer||'').localeCompare(b.composer||'','de')||(a.extra||'').localeCompare(b.extra||'','de');
+const letterOf=t=>{const c=(t||'').trim().charAt(0).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();return /^[A-Z]$/.test(c)?c:'#'};
+const composers=()=>[...new Set(db.pieces.map(p=>(p.composer||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
+const catOptions=(sel,all)=>(all?`<option value="">Alle Kategorien</option>`:'')+CATS.map(c=>`<option ${c===sel?'selected':''}>${c}</option>`).join('');
+function filteredPieces(){
+  const q=ui.rf.q.trim().toLowerCase();
+  return db.pieces.filter(p=>(!q||(p.title||'').toLowerCase().includes(q))
+    &&(!ui.rf.composer||(ui.rf.composer==='__none__'?!(p.composer||'').trim():(p.composer||'').trim()===ui.rf.composer))
+    &&(!ui.rf.cat||catOf(p)===ui.rf.cat)).sort(byPiece);
+}
+function repListHtml(){
+  if(!db.pieces.length)return `<div class="muted" style="margin-top:16px">Noch keine Stücke im Repertoire. Lege oben das erste Stück an.</div>`;
+  const ps=filteredPieces();
+  const active=ui.rf.q||ui.rf.composer||ui.rf.cat;
+  let h=`<div class="row" style="margin:6px 0"><span class="muted sp">${active?`${ps.length} von ${db.pieces.length} Stücken`:`${db.pieces.length} Stück${db.pieces.length===1?'':'e'}`}</span>${active?'<button class="btn sec small" data-a="resetfilters">Filter zurücksetzen</button>':''}</div>`;
+  if(!ps.length)return h+`<div class="muted" style="margin-top:12px">Kein Stück passt zu den Filtern.</div>`;
+  let cur='';
+  ps.forEach(p=>{
+    const L=letterOf(p.title);if(L!==cur){cur=L;h+=`<div class="lt">${L}</div>`}
+    const last=p.plays.length?p.plays.map(x=>x.date).sort().pop():'';
+    const sub=[p.composer,p.extra].map(x=>(x||'').trim()).filter(Boolean).map(esc).join(' · ')||'<span style="opacity:.6">kein Komponist</span>';
+    h+=`<button class="ev" data-a="openrep" data-id="${p.id}"><div class="sp"><div><b>${esc(p.title)||'(ohne Titel)'}</b></div><div class="muted">${sub}${last?` · zuletzt ${fmtD(last)}`:''}</div></div>
+      ${catOf(p)!=='Allgemein'?`<span class="badge">${esc(catOf(p))}</span>`:''}<span class="muted" style="min-width:34px;text-align:right">${p.plays.length}×</span></button>`;
+  });
+  return h;
+}
+function pieceForm(){
+  const f=ui.pf;
+  return `<div class="card"><h2>Neues Stück</h2>
+  <div class="fgrid">
+    <label style="grid-column:1/-1">Titel<input id="pTitle" data-c="pf_title" value="${esc(f.title)}" autocomplete="off"></label>
+    <label>Komponist<input id="pComp" data-c="pf_composer" list="compList" value="${esc(f.composer)}" autocomplete="off"></label>
+    <label>Arrangeur / Satz (optional)<input id="pExtra" data-c="pf_extra" value="${esc(f.extra)}" placeholder="z. B. Satz: M. Praetorius" autocomplete="off"></label>
+    <label>Kategorie<select id="pCat" data-c="pf_cat">${catOptions(f.cat||'Allgemein')}</select></label>
+    <div class="hint muted">Ohne Auswahl gilt „Allgemein“.</div>
+  </div>
+  <datalist id="compList">${composers().map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+  ${ui.pfMsg?`<div style="margin-bottom:10px;color:var(--on);font-weight:600">✓ ${esc(ui.pfMsg)}</div>`:''}
+  <div class="row"><button class="btn" data-a="addrep">Hinzufügen</button><button class="btn sec" data-a="closerep">Abbrechen</button></div></div>`;
+}
+function viewRep(){
+  const comps=composers();
+  const noComp=db.pieces.some(p=>!(p.composer||'').trim());
+  let h=`<h1>Repertoire</h1><div class="muted">Eine Liste aller Stücke des Orchesters</div>`;
+  h+=ui.showNewPiece?pieceForm():`<button class="btn wide" data-a="newrep">+ Neues Stück</button>`;
+  h+=`<div class="card"><div class="filters">
+    <input data-c="rq" placeholder="Titel suchen" value="${esc(ui.rf.q)}" autocomplete="off">
+    <select data-c="rcomp"><option value="">Alle Komponisten</option>${noComp?`<option value="__none__" ${ui.rf.composer==='__none__'?'selected':''}>– ohne Komponist –</option>`:''}${comps.map(c=>`<option ${c===ui.rf.composer?'selected':''}>${esc(c)}</option>`).join('')}</select>
+    <select data-c="rcat">${catOptions(ui.rf.cat,true)}</select></div></div>
+  <div id="repList">${repListHtml()}</div>`;
+  return h;
+}
+function viewPiece(){
+  const p=getPiece();if(!p){ui.pieceId=null;return viewRep()}
+  const plays=[...p.plays].sort((a,b)=>b.date.localeCompare(a.date));
+  const occ=[...new Set([...db.pieces.flatMap(x=>x.plays.map(y=>y.occasion)),...db.gigs.map(gigTitle)].map(s=>(s||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
+  const gigs=[...db.gigs].sort((a,b)=>b.date.localeCompare(a.date));
+  return `<button class="btn sec small" data-a="backrep">‹ Zurück</button>
+  <div class="card" style="margin-top:12px"><div class="fgrid">
+    <label style="grid-column:1/-1">Titel<input data-c="ptitle" value="${esc(p.title)}" autocomplete="off"></label>
+    <label>Komponist<input data-c="pcomp" list="compList" value="${esc(p.composer)}" autocomplete="off"></label>
+    <label>Arrangeur / Satz<input data-c="pextra" value="${esc(p.extra)}" placeholder="z. B. Satz: M. Praetorius" autocomplete="off"></label>
+    <label>Kategorie<select data-c="pcat">${catOptions(catOf(p))}</select></label>
+  </div><datalist id="compList">${composers().map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+  <div class="card"><h2>Gesungen</h2>
+    <div class="muted" style="margin:4px 0 8px">${plays.length?`${plays.length}× gesungen, zuletzt am ${fmtD(plays[0].date)}`:'Noch nicht eingetragen, wann und wozu dieses Stück gesungen wurde.'}</div>
+    ${plays.map(x=>`<div class="play"><span class="dw"><input type="date" data-c="pld" data-id="${x.id}" value="${x.date}"></span><input data-c="plo" data-id="${x.id}" list="occList" value="${esc(x.occasion)}" placeholder="Anlass" autocomplete="off"><button class="btn danger small" data-a="delplay" data-id="${x.id}">✕</button></div>`).join('')}
+    <div style="margin-top:14px"><div class="muted">Neu eintragen</div>
+      <div class="play" style="border:0;padding-bottom:0"><span class="dw"><input type="date" id="plDate" value="${today()}"></span><input id="plOcc" list="occList" placeholder="Anlass" autocomplete="off"></div>
+      <div class="row" style="margin-top:8px"><button class="btn" data-a="addplay">Hinzufügen</button></div>
+      ${gigs.length?`<select data-c="plgig" style="width:100%;margin-top:8px"><option value="">Aus einem Auftritt übernehmen …</option>${gigs.map(g=>`<option value="${g.id}">${fmtD(g.date)} · ${esc(gigTitle(g))}</option>`).join('')}</select>`:''}
+      <datalist id="occList">${occ.map(o=>`<option value="${esc(o)}">`).join('')}</datalist></div></div>
+  <button class="btn danger wide" data-a="delrep">Stück löschen</button>`;
+}
+/* Eingaben im Repertoire: Formular, Filter und Detailseite */
+function applyRepField(el,kind){
+  const c=el.dataset.c;if(!c)return false;
+  if(c.startsWith('pf_')){ui.pf[c.slice(3)]=el.value;return true}
+  if(c==='rq'||c==='rcomp'||c==='rcat'){
+    ui.rf[c==='rq'?'q':c==='rcomp'?'composer':'cat']=el.value;
+    const L=$('#repList');if(L)L.innerHTML=repListHtml();
+    return true;
+  }
+  const p=getPiece();
+  if(/^p(title|comp|extra|cat)$/.test(c)){
+    if(!p)return true;
+    if(c==='ptitle')p.title=el.value;else if(c==='pcomp')p.composer=el.value;else if(c==='pextra')p.extra=el.value;else p.cat=el.value||'Allgemein';
+    save();return true;
+  }
+  if(c==='pld'||c==='plo'){
+    const x=p&&p.plays.find(y=>y.id===el.dataset.id);
+    if(x){if(c==='pld'){if(el.value)x.date=el.value}else x.occasion=el.value;save()}
+    return true;
+  }
+  if(c==='plgig'){
+    if(kind==='change'){
+      const g=db.gigs.find(x=>x.id===el.value);
+      if(g){const d=$('#plDate'),o=$('#plOcc');if(d)d.value=g.date;if(o)o.value=gigTitle(g)}
+      el.value='';
+    }
+    return true;
+  }
+  return false;
+}
+
+/* ---------- Mitglieder ---------- */
+const schoolYear=d=>d.getMonth()>=7?d.getFullYear():d.getFullYear()-1; // Das Schuljahr beginnt am 1. August
+const gradeOf=m=>m.eyear?schoolYear(new Date())-m.eyear+(+db.settings.startGrade||5):null;
+function classOf(m){
+  const g=gradeOf(m);if(g==null||g<1)return'';
+  if(g>13)return'Schule beendet';
+  return g===11?'EF':g===12?'Q1':g===13?'Q2':g+(m.letter||'');
+}
+const gradeKey=m=>{const g=gradeOf(m);return g==null?999:g};
+function memberForm(m,edit){
+  const ny=new Date().getFullYear();
+  const yrs=Array.from({length:16},(_,i)=>ny+1-i);if(m.eyear&&!yrs.includes(m.eyear))yrs.push(m.eyear);
+  return `<div class="card"><h2>${edit?'Mitglied bearbeiten':'Neues Mitglied'}</h2>
+  <div class="fgrid">
+    <label>Nachname<input id="mLast" value="${esc(m.last||'')}" autocomplete="off"></label>
+    <label>Vorname<input id="mFirst" value="${esc(m.first||'')}" autocomplete="off"></label>
+    <label>Instrument<select id="mInstr">${INSTR.map(v=>`<option ${v===m.instr?'selected':''}>${v}</option>`).join('')}${m.instr&&!INSTR.includes(m.instr)?`<option selected>${esc(m.instr)}</option>`:''}</select></label>
+    <span></span>
+    <label>Einschulungsjahr<select id="mEY" data-c="mcls"><option value="">–</option>${yrs.map(y=>`<option ${y===m.eyear?'selected':''}>${y}</option>`).join('')}</select></label>
+    <label>Klassenbuchstabe<select id="mCL" data-c="mcls"><option value="">–</option>${['a','b','c','d'].map(l=>`<option value="${l}" ${l===m.letter?'selected':''}>${l}</option>`).join('')}</select></label>
+    <div class="hint muted" style="grid-column:1/-1;padding:0">Klasse jetzt: <b id="mCls">${esc(classOf(m)||'–')}</b> (wird jedes Schuljahr ab 1. August automatisch hochgezählt)</div>
+    <label>Eintritt ins Orchester<span class="dw"><input type="date" id="mJoined" value="${m.joined||''}"></span></label>
+    <span></span>
+    <div>Austritt aus dem Orchester<div class="dwrap"><span class="dw"><input type="date" id="mLeft" value="${m.left||''}"></span><button class="btn sec small" type="button" data-a="clearleft">Leeren</button></div></div>
+    <div class="hint muted">Nur ausfüllen, wenn die Person das Orchester verlässt. Ab diesem Datum erscheint sie unter „Ehemalige“.</div>
+  </div>
+  <div class="row"><button class="btn" data-a="${edit?'savemember':'addmember'}">${edit?'Speichern':'Hinzufügen'}</button><button class="btn sec" data-a="${edit?'canceledit':'cancelnewmember'}">Abbrechen</button></div></div>`;
+}
+const memberBadges=m=>`${classOf(m)?` <span class="badge">${esc(classOf(m))}</span>`:''}${m.active===false?' <span class="badge">pausiert</span>':''}${m.left?` <span class="badge">Austritt ${fmtD(m.left)}</span>`:''}${!m.joined?' <span class="badge">Eintritt fehlt</span>':''}${!m.eyear?' <span class="badge">Klasse fehlt</span>':''}`;
+const memberBtns=m=>`<button class="btn sec small" title="Ändern" aria-label="Ändern" data-a="editmember" data-id="${m.id}">✎</button>
+      <button class="btn sec small" title="${m.active===false?'Aktivieren':'Pausieren'}" aria-label="${m.active===false?'Aktivieren':'Pausieren'}" data-a="togglemember" data-id="${m.id}">${m.active===false?'▶':'⏸'}</button>
+      <button class="btn danger small" title="Löschen" aria-label="Löschen" data-a="delmember" data-id="${m.id}">✕</button>`;
+function viewMembers(){
+  const em=ui.editMember&&db.members.find(x=>x.id===ui.editMember);
+  const cur=db.members.filter(m=>!isFormer(m)),former=db.members.filter(isFormer).sort(byName);
+  let h=`<h1>Mitglieder</h1><div class="muted">${activeMembers().length} aktive Mitglieder</div>`;
+  h+=em?memberForm(em,true):ui.showNewMember?memberForm({instr:ui.lastInstr},false):`<button class="btn wide" data-a="newmember">+ Neues Mitglied</button>`;
+  h+=`<div class="row" style="margin:6px 0">${[['instr','Nach Instrument'],['name','Alphabetisch'],['cls','Nach Klasse']].map(([k,l])=>`<button class="btn small ${ui.msort===k?'':'sec'}" data-a="msort" data-v="${k}">${l}</button>`).join('')}</div>`;
+  if(!cur.length)h+=`<div class="card muted">Noch niemand eingetragen.</div>`;
+  else if(ui.msort==='instr'){
+    h+=`<div class="igrid mem">`;
+    for(const v of instrGroups()){
+      const ms=cur.filter(m=>m.instr===v).sort(byName);if(!ms.length)continue;
+      h+=`<div class="ig"><div class="ih"><b class="sp">${esc(instrLabel(v))}</b><span class="cnt">${ms.filter(m=>m.active!==false).length}</span></div>`+
+        ms.map(m=>`<div class="piece"><span>${esc(dn(m))}${memberBadges(m)}</span>${memberBtns(m)}</div>`).join('')+`</div>`;
+    }
+    h+=`</div>`;
+  }else{
+    const list=[...cur].sort(ui.msort==='cls'?(a,b)=>gradeKey(a)-gradeKey(b)||(a.letter||'').localeCompare(b.letter||'')||byName(a,b):byName);
+    h+=`<div class="card"><div class="fm m5 hd"><span>Name</span><span>Klasse</span><span>Instrument</span><span>Eintritt</span><span></span></div>`+
+      list.map(m=>`<div class="fm m5"><b class="nm">${esc(dn(m))}${m.active===false?' <span class="badge">pausiert</span>':''}</b>
+        <span><span class="lb">Klasse </span>${esc(classOf(m)||'–')}</span>
+        <span><span class="lb">Instrument </span>${esc(instrLabel(m.instr))}</span>
+        <span><span class="lb">Eintritt </span>${m.joined?fmtD(m.joined):'–'}</span>
+        <span class="act">${memberBtns(m)}</span></div>`).join('')+`</div>`;
+  }
+  h+=`<h2 style="margin-top:22px">Ehemalige Mitglieder <span class="muted">${former.length}</span></h2><div class="card">`;
+  if(former.length){
+    h+=`<div class="fm hd"><span>Name</span><span>Instrument</span><span>Eintritt</span><span>Austritt</span><span>Zeit im Orchester</span><span></span></div>`;
+    h+=former.map(m=>`<div class="fm"><b class="nm">${esc(dn(m))}</b>
+      <span><span class="lb">Instrument </span>${esc(instrLabel(m.instr))}</span>
+      <span><span class="lb">Eintritt </span>${m.joined?fmtD(m.joined):'–'}</span>
+      <span><span class="lb">Austritt </span>${fmtD(m.left)}</span>
+      <span><span class="lb">Zeit im Orchester </span>${m.joined?(()=>{const s=span(pd(m.joined),pd(m.left));return s.y+' J., '+s.m+' Mon.'})():'–'}</span>
+      <span class="act"><button class="btn sec small" data-a="editmember" data-id="${m.id}">Ändern</button><button class="btn danger small" data-a="delmember" data-id="${m.id}">✕</button></span></div>`).join('');
+  }else h+=`<span class="muted">Keine ehemaligen Mitglieder.</span>`;
+  h+=`</div>`;
+  return h;
+}
+
+/* ---------- Statistik ---------- */
+const dec=x=>(Math.round(x*10)/10).toString().replace('.',',');
+const fmtMin=m=>m+' Min / '+dec(m/60)+' Std / '+dec(m/1440)+' Tage';
+function viewStats(){
+  const pm=probeMinutes();
+  const y=String(ui.year);
+  const t=today();
+  // Es zählt nur, was schon stattgefunden hat (Datum bis einschließlich heute); entfallene Proben zählen nicht
+  const pr=db.events.filter(e=>isProbe(e)&&!e.cancelled&&e.date.startsWith(y)&&e.date<=t);
+  const gg=db.gigs.filter(g=>g.date.startsWith(y)&&g.date<=t);
+  const prAvg=avg(pr.map(presentCount));
+  // Wer zählt bei einer Probe mit? Aktive Mitglieder, die an dem Tag im Orchester waren, dazu jeder, der anwesend war.
+  const elig=e=>db.members.filter(m=>(m.active!==false&&inOrch(m,e.date))||e.present.includes(m.id));
+  const slots=pr.reduce((s,e)=>s+elig(e).length,0);
+  const got=pr.reduce((s,e)=>s+presentCount(e),0);
+  let h=`<div class="row"><h1 class="sp">Statistik</h1>${yearSelect()}</div>`;
+  h+=`<div class="muted">Es zählen nur Proben und Auftritte, die bis heute stattgefunden haben. Entfallene Proben zählen nicht.</div>`;
+  const titles=()=>gg.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(g=>`<div class="tl">${esc(gigTitle(g))} (${fmtD(g.date)})</div>`).join('');
+  h+=`<div class="grid" style="margin-top:10px">`+[['Proben',pr.length,''],['Auftritte',gg.length,titles()],['Gesamt',pr.length+gg.length,'']].map(([l,n,tl])=>`<div class="card"><div class="muted">${l} ${y}</div><div class="big">${n}</div>${tl}</div>`).join('')+`</div>`;
+  h+=`<div class="card"><div class="muted">Probenbeteiligung ${y} (nur Proben)</div>
+    <div class="big">${slots?pct(got/slots):'–'}</div>
+    <div class="muted">${pr.length?`Ø ${f1(prAvg)} Mitglieder pro Probe bei Ø ${f1(slots/pr.length)} Eingetragenen (${pr.length} Proben). Neue Mitglieder zählen ab ihrem Eintritt ins Orchester, ehemalige bis zu ihrem Austritt.`:'Noch keine Proben in diesem Jahr.'}</div></div>`;
+  h+=`<h2 style="margin-top:20px">Proben nach Instrument</h2><div class="card"><table>`+instrGroups().map(v=>{
+    const n=activeMembers().filter(m=>m.instr===v).length;
+    const sl=pr.reduce((s,e)=>s+elig(e).filter(m=>m.instr===v).length,0);
+    if(!n&&!sl)return'';
+    const a=avg(pr.map(e=>presentOfInstr(e,v)));
+    const g=pr.reduce((s,e)=>s+presentOfInstr(e,v),0);
+    return `<tr><td>${esc(instrLabel(v))}</td><td class="muted">${n} Mitglied${n===1?'':'er'}</td><td>${pr.length?'Ø '+f1(a)+(sl?' ('+pct(g/sl)+')':''):'–'}</td></tr>`}).join('')+`</table></div>`;
+  // Anwesenheit pro Mitglied: höchster Anteil zuerst, die besten drei Prozentwerte farbig
+  const rows=db.members.filter(m=>pr.some(e=>e.present.includes(m.id))||(m.active!==false&&(!m.joined||m.joined<=y+'-12-31')&&(!m.left||m.left>=y+'-01-01'))).map(m=>{
+    const n=pr.filter(e=>e.present.includes(m.id)).length;
+    const tot=pr.filter(e=>e.present.includes(m.id)||inOrch(m,e.date)).length;
+    return{m,n,tot,p:tot?Math.round(n/tot*100):-1};
+  }).sort((a,b)=>b.p-a.p||b.n-a.n||byName(a.m,b.m));
+  const top=[...new Set(rows.filter(r=>r.p>0).map(r=>r.p))].slice(0,3);
+  h+=`<h2 style="margin-top:20px">Anwesenheit pro Mitglied</h2><div class="muted">Sortiert nach Anteil der besuchten Proben. Farbig: die drei besten Werte (bei Gleichstand auch mehr als drei Personen).</div><div class="card">`+(rows.length?`<table class="mt"><tr class="muted"><td>Name</td><td>Instrument</td><td>Proben</td><td>Zeit in Proben</td><td>Anteil</td></tr>`+rows.map(r=>{
+    const k=top.indexOf(r.p);
+    return `<tr class="${k>=0?'r'+(k+1):''}"><td>${esc(dn(r.m))}</td><td class="muted">${esc(instrLabel(r.m.instr))}${classOf(r.m)?' · '+esc(classOf(r.m)):''}</td><td>${r.n}/${r.tot}</td><td>${fmtMin(r.n*pm)}</td><td>${r.tot?r.p+' %':'–'}</td></tr>`}).join('')+`</table>`:`<span class="muted">Keine Daten.</span>`)+`</div>`;
+  const cnt={};gg.forEach(g=>(g.pieces||[]).forEach(p=>cnt[p]=(cnt[p]||0)+1));
+  const ps=Object.entries(cnt).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'de'));
+  const total=ps.reduce((n,[,k])=>n+k,0);
+  h+=`<h2 style="margin-top:20px">Stücke bei Auftritten</h2><div class="muted" style="margin-top:4px">${total?`Im Jahr ${y} hat das Orchester bei Auftritten insgesamt ${total===1?'ein Stück':total+' Stücke'} gesungen${ps.length!==total?` (${ps.length} verschiedene)`:''}.`:`Im Jahr ${y} wurden bei Auftritten noch keine Stücke gesungen.`}</div><div class="card">`+(ps.length?`<table>`+ps.map(([p,n])=>`<tr><td>${esc(p)}</td><td>${n}×</td></tr>`).join('')+`</table>`:`<span class="muted">Noch keine Stücke eingetragen.</span>`)+`</div>`;
+  return h;
+}
+
+/* ---------- Sicherung ---------- */
+const lastBackup=()=>{try{return localStorage.getItem('orch-backup')}catch(e){return null}};
+function settingsCard(){
+  const st=db.settings,cs=[...st.conductors];
+  return `<div class="muted">Allgemeine Angaben zum Orchester. Sie sind in der Sicherung enthalten.</div>
+  <div class="card"><div class="fgrid">
+    <label style="grid-column:1/-1">Name des Orchesters<input data-c="set_name" value="${esc(st.name)}" autocomplete="off"></label>
+    <label>Gegründet<input data-c="set_founded" value="${esc(st.founded)}" placeholder="z. B. 1995" autocomplete="off"></label>
+    <label>Probenort<input data-c="set_place" value="${esc(st.place)}" placeholder="z. B. Musikraum" autocomplete="off"></label>
+    <label style="grid-column:1/-1">Schule<input data-c="set_org" value="${esc(st.org)}" autocomplete="off"></label>
+    <label style="grid-column:1/-1">Kontakt (E-Mail, Telefon, Webseite)<input data-c="set_contact" value="${esc(st.contact)}" autocomplete="off"></label>
+  </div></div>
+  <div class="card"><h2>Proben</h2><div class="fgrid">
+    <label>Wochentag<select data-c="set_probeDay">${WEEKDAYS.map(([k,l])=>`<option value="${k}" ${k===st.probeDay?'selected':''}>${l}</option>`).join('')}</select></label>
+    <span></span>
+    <label>Von<input type="time" data-c="set_probeFrom" value="${esc(st.probeFrom)}"></label>
+    <label>Bis<input type="time" data-c="set_probeTo" value="${esc(st.probeTo)}"></label>
+  </div><div class="muted">Dauer einer Probe: <b id="pDur">${probeMinutes()} Minuten</b>. Der Wochentag ist die Vorgabe für „Ganzes Jahr anlegen“ und für neue Proben.</div></div>
+  <div class="card"><h2>Klassen</h2><div class="fgrid">
+    <label>Einschulungsjahr bedeutet Start in Klasse<input type="number" inputmode="numeric" min="1" max="13" data-c="set_startGrade" value="${st.startGrade}"></label>
+  </div><div class="muted">Beispiel mit 5: Wer 2024 eingeschult wurde, ist im Schuljahr 2026/27 in Klasse 7. Ab Klasse 11 heißt es EF, dann Q1 und Q2.</div></div>
+  <div class="card"><h2>Orchesterleitung</h2><div class="muted" style="margin:4px 0">Wer hat das Orchester von wann bis wann geleitet? „Bis“ leer lassen für die aktuelle Leitung.</div>
+    ${cs.map((c,i)=>`<div class="cond"><input data-c="cond_name" data-i="${i}" placeholder="Name" value="${esc(c.name)}" autocomplete="off">
+      <div class="fgrid" style="margin:8px 0"><label>Von<span class="dw"><input type="date" data-c="cond_from" data-i="${i}" value="${c.from||''}"></span></label>
+      <label>Bis<span class="dw"><input type="date" data-c="cond_to" data-i="${i}" value="${c.to||''}"></span></label></div>
+      <div class="row"><button class="btn sec small" data-a="clearcond" data-i="${i}">„Bis“ leeren</button><button class="btn danger small" data-a="delcond" data-i="${i}">Entfernen</button></div></div>`).join('')}
+    <button class="btn sec small" style="margin-top:12px" data-a="addcond">+ Leitung hinzufügen</button></div>`;
+}
+function applySettingsField(el){
+  const c=el.dataset.c;if(!c)return false;
+  if(c.startsWith('set_')){
+    const k=c.slice(4);
+    db.settings[k]=k==='startGrade'?(+el.value>=1&&+el.value<=13?+el.value:5):el.value;
+    save();const d=$('#pDur');if(d)d.textContent=probeMinutes()+' Minuten';return true;
+  }
+  if(/^cond_(name|from|to)$/.test(c)){
+    const x=db.settings.conductors[+el.dataset.i];if(x){x[c.slice(5)]=el.value;save()}return true;
+  }
+  return false;
+}
+function viewBackup(){
+  const lb=lastBackup();
+  const old=!lb||(Date.now()-new Date(lb+'T12:00:00'))/864e5>30;
+  return `<h1>Einstellungen</h1>
+  ${settingsCard()}
+  <div class="sect" style="margin-top:34px">Sicherung</div>
+  <div class="card ${old?'warn':''}"><b>Letzte Sicherung:</b> ${lb?fmt(lb):'noch nie'}<div class="muted" style="margin-top:6px">Deine Daten liegen nur auf diesem Gerät. Mache regelmäßig eine Sicherung, zum Beispiel einmal im Monat.</div></div>
+  <div class="card"><button class="btn wide" style="margin:0" data-a="export">Sicherung erstellen</button></div>
+  <div class="card"><h2>Sicherung einspielen</h2><div class="muted" style="margin:6px 0 12px">Ersetzt alle Daten auf diesem Gerät durch die der Sicherungsdatei. Damit kannst du die Daten auch auf ein anderes Gerät übertragen.</div><input type="file" data-c="import" accept=".json,application/json"></div>
+  <div class="muted" style="text-align:center;margin-top:20px">${db.members.length} Mitglieder · ${db.events.length} Proben · ${db.gigs.length} Auftritte · ${db.pieces.length} Stücke gespeichert</div>`;
+}
+function markBackup(){try{localStorage.setItem('orch-backup',today())}catch(e){}}
+async function doExport(){
+  const json=JSON.stringify({app:'orchesterverwaltung',version:1,exported:new Date().toISOString(),members:db.members,events:db.events,gigs:db.gigs,pieces:db.pieces,settings:db.settings},null,1);
+  const name='orchester-sicherung-'+today()+'.json';
+  const file=new File([json],name,{type:'application/json'});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});markBackup();render();return}
+  }catch(err){if(err&&err.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();
+  markBackup();render();
+}
+function doImport(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(d.app&&d.app!=='orchesterverwaltung')throw 0;
+      if(!Array.isArray(d.members)||!Array.isArray(d.events))throw 0;
+      if(!confirm(`Alle aktuellen Daten ersetzen durch ${d.members.length} Mitglieder, ${d.events.length} Proben, ${(d.gigs||[]).length} Auftritte und ${(d.pieces||[]).length} Stücke?`))return;
+      db={members:d.members.map(normMember),events:d.events.map(normEvent),gigs:(Array.isArray(d.gigs)?d.gigs:[]).map(normGig),pieces:(Array.isArray(d.pieces)?d.pieces:[]).map(normPiece),settings:normSettings(d.settings)};linkGigPieces();save();render();alert('Sicherung eingespielt.');
+    }catch(e){alert('Diese Datei ist keine gültige Sicherung.')}
+  };
+  r.readAsText(file);
+}
+
+/* ---------- Render & Events ---------- */
+function render(){
+  const y=window.scrollY;
+  const v=ui.eventId?viewEvent:ui.gigId?viewGig:ui.pieceId?viewPiece:{proben:viewProben,auftritte:viewGigs,repertoire:viewRep,mitglieder:viewMembers,statistik:viewStats,sicherung:viewBackup}[ui.tab];
+  try{$('#app').innerHTML=v()+shareOverlay()}catch(err){
+    ui.eventId=null;ui.gigId=null;ui.pieceId=null;
+    $('#app').innerHTML=`<div class="card warn"><b>Anzeigefehler</b><div class="muted" style="margin-top:6px">${esc(err&&err.message)}</div><div class="muted">Bitte tippe unten auf einen Reiter, um weiterzumachen.</div></div>`;
+  }
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===ui.tab));
+  fitChips();
+  window.scrollTo(0,y);
+  if(ui.focus){const el=$(ui.focus);if(el)el.focus();ui.focus=null}
+}
+
+document.addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-t]');
+  if(t){ui.tab=t.dataset.t;ui.eventId=null;ui.showNew=false;ui.showBulk=false;ui.editMember=null;ui.showNewMember=false;ui.gigId=null;ui.showNewGig=false;ui.listMode=false;ui.pieceId=null;ui.showNewPiece=false;ui.pfMsg='';closeShare();window.scrollTo(0,0);render();return}
+  const b=ev.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a,id=b.dataset.id,e=getEvent(),g=getGig();
+  if(a==='new'){ui.showNew=true}
+  else if(a==='cancelnew'){ui.showNew=false}
+  else if(a==='bulk'){ui.showBulk=true}
+  else if(a==='cancelbulk'){ui.showBulk=false}
+  else if(a==='dobulk'){
+    const yr=parseInt($('#bYear').value,10),wd=+$('#bDay').value;
+    if(!(yr>=2000&&yr<=2100)){alert('Bitte ein Jahr zwischen 2000 und 2100 eingeben.');return}
+    const have=new Set(db.events.filter(isProbe).map(x=>x.date));
+    let made=0,skipped=0;
+    for(let d=new Date(yr,0,1);d.getFullYear()===yr;d.setDate(d.getDate()+1)){
+      if(d.getDay()!==wd)continue;
+      const k=ymd(d);
+      if(have.has(k)){skipped++;continue}
+      db.events.push(normEvent({id:uid(),date:k,type:'probe'}));made++;
+    }
+    save();ui.year=yr;ui.bulkYear=yr;ui.showBulk=false;render();
+    alert(made+' Proben angelegt'+(skipped?', '+skipped+' übersprungen (gab es schon)':'')+'.');return;
+  }
+  else if(a==='togglecancel'&&e){e.cancelled=!e.cancelled;save()}
+  else if(a==='create'){
+    const date=$('#nDate').value;if(!date){alert('Bitte ein Datum wählen.');return}
+    const n=normEvent({id:uid(),date,type:'probe',title:$('#nTitle').value.trim()});
+    db.events.push(n);save();ui.eventId=n.id;ui.showNew=false;ui.year=+date.slice(0,4);window.scrollTo(0,0);
+  }
+  else if(a==='open'){ui.eventId=id;window.scrollTo(0,0)}
+  else if(a==='back'){ui.eventId=null;window.scrollTo(0,0)}
+  else if(a==='toggle'&&e){cycle(e,id);save()}
+  else if(a==='gtoggle'&&g){cycle(g,id);save()}
+  else if(a==='gall'&&g){setAll(g,b.dataset.v);save()}
+  else if(a==='gnone'&&g){setNone(g,b.dataset.v);save()}
+  else if(a==='all'&&e){setAll(e,b.dataset.v);save()}
+  else if(a==='allx'&&e){setAll(e,null);save()}
+  else if(a==='nonex'&&e){setNone(e,null);save()}
+  else if(a==='gallx'&&g){setAll(g,null);save()}
+  else if(a==='gnonex'&&g){setNone(g,null);save()}
+  else if(a==='msort'){ui.msort=b.dataset.v}
+  else if(a==='none'&&e){setNone(e,b.dataset.v);save()}
+  else if(a==='addpiece'&&e){const i=$('#pInput'),p=i.value.trim();if(!p)return;e.pieces.push(p);save();ui.focus='#pInput'}
+  else if(a==='delpiece'&&e){e.pieces.splice(+b.dataset.i,1);save()}
+  else if(a==='delevent'&&e){if(!confirm('Diese Probe wirklich löschen?'))return;db.events=db.events.filter(x=>x.id!==e.id);save();ui.eventId=null}
+  else if(a==='addmember'){
+    const first=$('#mFirst').value.trim(),last=$('#mLast').value.trim();
+    if(!first&&!last){alert('Bitte Nach- und Vornamen eingeben.');return}
+    ui.lastInstr=$('#mInstr').value;
+    db.members.push(normMember({id:uid(),first,last,instr:ui.lastInstr,eyear:$('#mEY').value,letter:$('#mCL').value,joined:$('#mJoined').value||'',left:$('#mLeft').value||'',active:true}));save();ui.showNewMember=false;
+  }
+  else if(a==='newmember'){ui.showNewMember=true;ui.focus='#mLast'}
+  else if(a==='cancelnewmember'){ui.showNewMember=false}
+  else if(a==='editmember'){ui.editMember=id;ui.showNewMember=false;window.scrollTo(0,0)}
+  else if(a==='canceledit'){ui.editMember=null}
+  else if(a==='clearleft'){const i=$('#mLeft');if(i)i.value='';return}
+  else if(a==='savemember'){
+    const m=db.members.find(x=>x.id===ui.editMember);
+    const first=$('#mFirst').value.trim(),last=$('#mLast').value.trim();
+    if(!first&&!last){alert('Bitte Nach- und Vornamen eingeben.');return}
+    m.first=first;m.last=last;m.instr=$('#mInstr').value;m.eyear=$('#mEY').value;m.letter=$('#mCL').value;m.joined=$('#mJoined').value||'';m.left=$('#mLeft').value||'';normMember(m);save();ui.editMember=null;
+  }
+  else if(a==='togglemember'){const m=db.members.find(x=>x.id===id);m.active=m.active===false;save()}
+  else if(a==='delmember'){
+    const m=db.members.find(x=>x.id===id);
+    if(!confirm(`${dn(m)} wirklich löschen? Die Anwesenheiten gehen dabei verloren. Tipp: „Pausieren“ (⏸) oder ein Austritt behält alle Daten.`))return;
+    if(ui.editMember===id)ui.editMember=null;
+    db.members=db.members.filter(x=>x.id!==id);db.events.forEach(x=>{x.present=x.present.filter(p=>p!==id);x.away=x.away.filter(p=>p!==id)});db.gigs.forEach(x=>{x.present=x.present.filter(p=>p!==id);x.undecided=x.undecided.filter(p=>p!==id);x.no=x.no.filter(p=>p!==id)});save();
+  }
+  else if(a==='newgig'){ui.showNewGig=true}
+  else if(a==='cancelnewgig'){ui.showNewGig=false}
+  else if(a==='creategig'){
+    const date=$('#gDate').value;if(!date){alert('Bitte ein Datum wählen.');return}
+    const n=normGig({id:uid(),title:$('#gTitle').value.trim(),date,location:''});
+    db.gigs.push(n);save();ui.gigId=n.id;ui.showNewGig=false;window.scrollTo(0,0);
+  }
+  else if(a==='opengig'){ui.gigId=id;window.scrollTo(0,0)}
+  else if(a==='backgig'){ui.gigId=null;window.scrollTo(0,0)}
+  else if(a==='addtime'&&g){g.times.push({time:'10:00',label:''});save()}
+  else if(a==='deltime'&&g){g.times.splice(+b.dataset.i,1);save()}
+  else if(a==='addgpiece'&&g){
+    const q=$('#gpInput').value.trim();if(!q)return;
+    let p=db.pieces.find(x=>pieceLabel(x).toLowerCase()===q.toLowerCase())||db.pieces.find(x=>same(x.title,q));
+    if(!p){p=normPiece({id:uid(),title:q});db.pieces.push(p)}
+    if(g.pids.includes(p.id)){alert('Dieses Stück ist bei diesem Auftritt schon eingetragen.');return}
+    addGigPiece(g,p);save();ui.focus='#gpInput';
+  }
+  else if(a==='pickgpiece'&&g){const p=db.pieces.find(x=>x.id===id);if(p&&!g.pids.includes(p.id)){addGigPiece(g,p);save()}}
+  else if(a==='delgpiece'&&g){dropGigPiece(g,+b.dataset.i);save()}
+  else if(a==='upgpiece'&&g){const i=+b.dataset.i;if(i>0){[g.pieces[i-1],g.pieces[i]]=[g.pieces[i],g.pieces[i-1]];[g.pids[i-1],g.pids[i]]=[g.pids[i],g.pids[i-1]];save()}}
+  else if(a==='downgpiece'&&g){const i=+b.dataset.i;if(i<g.pieces.length-1){[g.pieces[i+1],g.pieces[i]]=[g.pieces[i],g.pieces[i+1]];[g.pids[i+1],g.pids[i]]=[g.pids[i],g.pids[i+1]];save()}}
+  else if(a==='delgig'&&g){if(!confirm('Diesen Auftritt wirklich löschen?'))return;db.pieces.forEach(p=>{p.plays=p.plays.filter(x=>x.gig!==g.id)});db.gigs=db.gigs.filter(x=>x.id!==g.id);save();ui.gigId=null}
+  else if(a==='gigimg'&&g){showCanvas(gigCanvas(g),'auftritt-'+g.date+'.png');return}
+  else if(a==='gigtxt'&&g){shareText(gigText(g));return}
+  else if(a==='listmode'){ui.listMode=true;ui.listSel=db.gigs.filter(x=>x.date>=today()).map(x=>x.id);window.scrollTo(0,0)}
+  else if(a==='backlist'){ui.listMode=false;window.scrollTo(0,0)}
+  else if(a==='tgllist'){ui.listSel=ui.listSel.includes(id)?ui.listSel.filter(x=>x!==id):[...ui.listSel,id]}
+  else if(a==='tglpieces'){ui.listPieces=!ui.listPieces}
+  else if(a==='listimg'){const gs=listGigs();if(gs.length)showCanvas(gigListCanvas(gs,{title:ui.listTitle,pieces:ui.listPieces}),'auftritte-liste.png');return}
+  else if(a==='listtxt'){const gs=listGigs();if(gs.length)shareText(gigListText(gs,{title:ui.listTitle,pieces:ui.listPieces}));return}
+  else if(a==='doshare'){shareFile();return}
+  else if(a==='closeshare'){closeShare()}
+  else if(a==='newrep'){ui.showNewPiece=true;ui.pfMsg='';ui.focus='#pTitle'}
+  else if(a==='closerep'){ui.showNewPiece=false;ui.pfMsg='';ui.pf={title:'',composer:'',extra:'',cat:'Allgemein'}}
+  else if(a==='addrep'){
+    const f={title:$('#pTitle').value.trim(),composer:$('#pComp').value.trim(),extra:$('#pExtra').value.trim(),cat:$('#pCat').value||'Allgemein'};
+    if(!f.title){alert('Bitte einen Titel eingeben.');return}
+    if(db.pieces.some(p=>same(p.title,f.title)&&same(p.composer,f.composer)&&same(p.extra,f.extra))&&!confirm('Dieses Stück gibt es schon im Repertoire. Trotzdem noch einmal anlegen?'))return;
+    db.pieces.push(normPiece({id:uid(),title:f.title,composer:f.composer,extra:f.extra,cat:f.cat}));save();
+    ui.pfMsg='';ui.pf={title:'',composer:'',extra:'',cat:'Allgemein'};ui.showNewPiece=false;
+  }
+  else if(a==='openrep'){ui.pieceId=id;window.scrollTo(0,0)}
+  else if(a==='backrep'){ui.pieceId=null;window.scrollTo(0,0)}
+  else if(a==='resetfilters'){ui.rf={q:'',composer:'',cat:''}}
+  else if(a==='addplay'){
+    const p=getPiece();const date=$('#plDate').value;
+    if(!p)return;if(!date){alert('Bitte ein Datum wählen.');return}
+    p.plays.push({id:uid(),date,occasion:($('#plOcc').value||'').trim()});save();
+  }
+  else if(a==='delplay'){const p=getPiece();if(p){p.plays=p.plays.filter(x=>x.id!==id);save()}}
+  else if(a==='delrep'){
+    const p=getPiece();if(!p)return;
+    if(!confirm(`„${p.title||'Dieses Stück'}“ wirklich aus dem Repertoire löschen?`))return;
+    db.pieces=db.pieces.filter(x=>x.id!==p.id);db.gigs.forEach(x=>{x.pids=x.pids.map(i=>i===p.id?'':i)});save();ui.pieceId=null;
+  }
+  else if(a==='addcond'){db.settings.conductors.push({name:'',from:'',to:''});save();ui.focus='[data-c="cond_name"][data-i="'+(db.settings.conductors.length-1)+'"]'}
+  else if(a==='delcond'){if(!confirm('Diesen Eintrag entfernen?'))return;db.settings.conductors.splice(+b.dataset.i,1);save()}
+  else if(a==='clearcond'){const x=db.settings.conductors[+b.dataset.i];if(x){x.to='';save()}}
+  else if(a==='export'){doExport();return}
+  render();
+});
+document.addEventListener('change',ev=>{
+  const c=ev.target.dataset.c;if(!c)return;
+  if(ev.target.dataset.c==='gpq')return;
+  if(applySettingsField(ev.target))return;
+  if(applyGigField(ev.target))return;
+  if(applyRepField(ev.target,'change'))return;
+  if(c==='ltitle'){ui.listTitle=ev.target.value;return}
+  if(c==='mcls'){const o=$('#mCls');if(o)o.textContent=classOf({eyear:+$('#mEY').value||'',letter:$('#mCL').value})||'–';return}
+  const e=getEvent();
+  if(c==='year'){ui.year=+ev.target.value}
+  else if(c==='evdate'&&e){if(ev.target.value){e.date=ev.target.value;ui.year=+e.date.slice(0,4);save()}}
+  else if(c==='evtitle'&&e){e.title=ev.target.value.trim();save();return}
+  else if(c==='import'){doImport(ev.target.files[0]);return}
+  render();
+});
+// Eingaben sofort speichern (ohne Neuzeichnen), damit nichts verloren geht
+document.addEventListener('input',ev=>{
+  const el=ev.target;if(!el.dataset||!el.dataset.c)return;
+  if(el.dataset.c==='gpq'){const g=getGig(),L=$('#gpSug');if(g&&L)L.innerHTML=sugHtml(g,el.value);return}
+  if(applySettingsField(el))return;
+  if(applyGigField(el))return;
+  if(applyRepField(el,'input'))return;
+  if(el.dataset.c==='ltitle'){ui.listTitle=el.value;return}
+  if(el.dataset.c==='evtitle'){const e=getEvent();if(e){e.title=el.value;save()}}
+});
+document.addEventListener('keydown',ev=>{
+  if(ev.key!=='Enter')return;
+  if(ev.target.id==='mFirst'||ev.target.id==='mLast'){const btn=document.querySelector('[data-a="addmember"],[data-a="savemember"]');if(btn)btn.click()}
+  if(ev.target.id==='pInput')document.querySelector('[data-a="addpiece"]').click();
+  if(ev.target.id==='gpInput'){const b=document.querySelector('[data-a="addgpiece"]');if(b)b.click()}
+  if(ev.target.id==='pTitle'||ev.target.id==='pComp'||ev.target.id==='pExtra'){const b=document.querySelector('[data-a="addrep"]');if(b)b.click()}
+  if(ev.target.id==='plOcc'){const b=document.querySelector('[data-a="addplay"]');if(b)b.click()}
+});
+window.addEventListener('resize',fitChips);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitChips);
+
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+linkGigPieces();
+render();
+</script>
+</body>
+</html>
